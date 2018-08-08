@@ -33,23 +33,6 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("go APE!\n"))
 }
 
-// TokenAuthMiddleware takes the `X-API-KEY` header and searches for a match in the database
-func (oape *OpenApe) TokenAuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := r.Header.Get("X-API-KEY")
-		var users interface{}
-		count, err := oape.db.Table("users").Where("api_key == %s", token).Count(&users)
-		if err != nil {
-			panic(fmt.Errorf("Error authenticating user: %s", err))
-		}
-		if count == 1 {
-			next.ServeHTTP(w, r)
-		} else {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-		}
-	})
-}
-
 // LoadConfig loads config file using Viper package
 func LoadConfig(path string) {
 	viper.SetConfigName("config")
@@ -165,6 +148,8 @@ func NewServer(configPath string) OpenApe {
 	o := OpenApe{dbEngine, r, swagger, viper.GetViper()}
 
 	o.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
+
+	// o.router.Use(o.TokenAuthMiddleware)
 
 	// set up with routes and models to DB and Router
 	o.MapModels(swagger.Components.Schemas)
