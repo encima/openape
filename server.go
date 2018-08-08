@@ -33,6 +33,23 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("go APE!\n"))
 }
 
+// TokenAuthMiddleware takes the `X-API-KEY` header and searches for a match in the database
+func (oape *OpenApe) TokenAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		token := r.Header.Get("X-API-KEY")
+		var users interface{}
+		count, err := oape.db.Table("users").Where("api_key == %s", token).Count(&users)
+		if err != nil {
+			panic(fmt.Errorf("Error authenticating user: %s", err))
+		}
+		if count == 1 {
+			next.ServeHTTP(w, r)
+		} else {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+		}
+	})
+}
+
 // LoadConfig loads config file using Viper package
 func LoadConfig(path string) {
 	viper.SetConfigName("config")
@@ -46,6 +63,7 @@ func LoadConfig(path string) {
 // AddRoute takes a path and a method to create a route handler for a Mux router instance
 func (oape *OpenApe) AddRoute(path string, method string) {
 	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+
 		w.Write([]byte(path))
 	}).Methods(method)
 }
@@ -142,6 +160,7 @@ func NewServer(configPath string) OpenApe {
 
 	oapiPath := viper.GetString("openapi.path")
 	swagger := LoadSwagger(oapiPath)
+	// swRouter := openapi3filter.NewRouter().WithSwagger(swagger)
 
 	o := OpenApe{dbEngine, r, swagger, viper.GetViper()}
 
