@@ -11,12 +11,22 @@ import (
 	"github.com/spf13/viper"
 )
 
+// OpenApe object to hold objects related to the server
 type OpenApe struct {
 	db      *xorm.Engine
 	router  *mux.Router
 	swagger *openapi3.Swagger
 	config  *viper.Viper
 }
+
+const (
+	baseCreationString string = "CREATE TABLE IF NOT EXISTS base (id VARCHAR PRIMARY KEY, created_at date, modified_at date);"
+)
+
+var (
+	pgBaseTypes     = []string{"id", "created_at", "modified_at"}
+	pgReservedWords = []string{"user"}
+)
 
 // RootHandler responds to / request
 func RootHandler(w http.ResponseWriter, r *http.Request) {
@@ -43,25 +53,21 @@ func (oape *OpenApe) AddRoute(path string, method string) {
 // MapModels reads the models from the provided swagger file and creates the correspdonding tables in Postgres
 func (oape *OpenApe) MapModels(models map[string]*openapi3.SchemaRef) {
 	// Create parent table
-	_, err := oape.db.Exec(oape.config.GetString("system-db.parent-stmt"))
+	_, err := oape.db.Exec(baseCreationString)
 	if err != nil {
 		panic(fmt.Errorf("Problem creating BASE table %s", err))
 	}
 	for k, v := range models {
 
 		tableInsert := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", k)
-
-		w := oape.config.Get("system-db.reserved-words").([]interface{})
-		words := ToStringMap(w)
-		if StringExists(k, words) {
+		if StringExists(k, pgReservedWords) {
 			panic(fmt.Errorf("Reserved word found, table cannot be created"))
 		}
 
 		for k, v := range v.Value.Properties {
 			vType := v.Value.Type
 			// remove fields that already exist in the `base` parent table
-			words = ToStringMap(viper.Get("system-db.parent-fields").([]interface{}))
-			if StringExists(k, words) {
+			if StringExists(k, pgBaseTypes) {
 				continue
 			}
 			dbType := "varchar"
