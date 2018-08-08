@@ -1,0 +1,1165 @@
+{
+  "openapi": "3.0.0",
+  "servers": [
+    {
+      "url": "http://0.0.0.0:8080/api/v1"
+    }
+  ],
+  "info": {
+    "title": "CCCS",
+    "version": "0.1"
+  },
+  "paths": {
+    "/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "x-swagger-router-controller": "api.user",
+        "operationId": "get",
+        "parameters": [
+          {
+            "name": "search_term",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return all users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Users"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/authorize": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "x-swagger-router-controller": "api.otoken",
+        "operationId": "generate",
+        "summary": "Post auth for token response",
+        "responses": {
+          "200": {
+            "description": "Token created"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Otoken"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/validate": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "OAuth2 token info",
+        "x-swagger-router-controller": "decorators.access_checks",
+        "operationId": "ensure_key",
+        "responses": {
+          "200": {
+            "description": "Token info object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Users"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/register": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Registration end point for a user account",
+        "x-swagger-router-controller": "api.user",
+        "operationId": "register",
+        "responses": {
+          "200": {
+            "description": "Created user"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Users"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/login": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "x-swagger-router-controller": "api.user",
+        "operationId": "login",
+        "summary": "Allow a user to login",
+        "responses": {
+          "200": {
+            "description": "Login successful"
+          },
+          "401": {
+            "description": "Incorrect login details"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Users"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Users"
+        ],
+        "x-swagger-router-controller": "api.user",
+        "operationId": "get_one",
+        "summary": "Get all users (or those matching an ID)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Users"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "tags": [
+          "Projects"
+        ],
+        "x-swagger-router-controller": "api.project",
+        "operationId": "get",
+        "summary": "Get all projects",
+        "parameters": [
+          {
+            "name": "search_term",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9]*$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Project"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "x-swagger-router-controller": "api.project",
+        "operationId": "create",
+        "summary": "Post a project",
+        "responses": {
+          "201": {
+            "description": "New project created"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Project"
+        }
+      }
+    },
+    "/projects/{id}": {
+      "get": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "x-swagger-router-controller": "api.project",
+        "operationId": "get_one",
+        "summary": "Get a single project",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return project"
+          },
+          "404": {
+            "description": "Project does not exist"
+          }
+        }
+      },
+      "put": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "x-swagger-router-controller": "api.project",
+        "operationId": "put",
+        "summary": "Modify/Create a project",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project modified"
+          },
+          "201": {
+            "description": "New project created"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Project"
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "x-swagger-router-controller": "api.project",
+        "operationId": "delete",
+        "summary": "Remove a project",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Project was deleted"
+          },
+          "404": {
+            "description": "Project does not exist"
+          }
+        }
+      }
+    },
+    "/projects/{id}/tasks": {
+      "get": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Projects"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 100
+            }
+          }
+        ],
+        "x-swagger-router-controller": "api.task",
+        "operationId": "project_tasks",
+        "responses": {
+          "200": {
+            "description": "Project tasks"
+          },
+          "404": {
+            "description": "Project does not exist"
+          }
+        }
+      }
+    },
+    "/tasks": {
+      "get": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Tasks"
+        ],
+        "x-swagger-router-controller": "api.task",
+        "operationId": "get",
+        "summary": "Get a list of tasks",
+        "responses": {
+          "200": {
+            "description": "List of tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Task"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Tasks"
+        ],
+        "x-swagger-router-controller": "api.task",
+        "operationId": "create",
+        "summary": "Post an array of tasks",
+        "responses": {
+          "200": {
+            "description": "Task created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Tasks"
+        ],
+        "x-swagger-router-controller": "api.task",
+        "operationId": "delete",
+        "summary": "Delete an array of tasks",
+        "responses": {
+          "204": {
+            "description": "Tasks were deleted"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{id}": {
+      "get": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Tasks"
+        ],
+        "x-swagger-router-controller": "api.task",
+        "operationId": "get_one",
+        "summary": "Get a single task",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Task"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Task does not exist"
+          }
+        }
+      },
+      "put": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Tasks"
+        ],
+        "x-swagger-router-controller": "api.task",
+        "operationId": "put",
+        "summary": "Modify/Create a task",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task modified"
+          },
+          "201": {
+            "description": "New task created"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Task"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Tasks"
+        ],
+        "x-swagger-router-controller": "api.task",
+        "operationId": "delete_one",
+        "summary": "Delete a single tasks",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Task was deleted"
+          }
+        }
+      }
+    },
+    "/submissions": {
+      "get": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Submissions"
+        ],
+        "x-swagger-router-controller": "api.submission",
+        "operationId": "get",
+        "summary": "Get a single submission",
+        "responses": {
+          "200": {
+            "description": "List of tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Submission"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Submissions"
+        ],
+        "x-swagger-router-controller": "api.submission",
+        "operationId": "create",
+        "summary": "Post a submission",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submission created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Submission"
+        }
+      },
+      "put": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Submissions"
+        ],
+        "x-swagger-router-controller": "api.submission",
+        "operationId": "put",
+        "summary": "Modify/Create a submission",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Submission modified"
+          },
+          "201": {
+            "description": "New submission created"
+          }
+        },
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Submission"
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Submissions"
+        ],
+        "x-swagger-router-controller": "api.submission",
+        "operationId": "delete",
+        "summary": "Remove a submission",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Submission was deleted"
+          },
+          "404": {
+            "description": "Submission does not exist"
+          }
+        }
+      }
+    },
+    "/submission/{id}": {
+      "get": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Submissions"
+        ],
+        "x-swagger-router-controller": "api.submission",
+        "operationId": "get_one",
+        "summary": "Get a single submission",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return submission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Submission"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Submission does not exist"
+          }
+        }
+      }
+    },
+    "/media": {
+      "post": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Media"
+        ],
+        "description": "Add a new media attachment",
+        "x-swagger-router-controller": "api.media",
+        "operationId": "upload",
+        "responses": {
+          "200": {
+            "description": "Media attached"
+          }
+        },
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "attachment": {
+                    "description": "The file to be uploaded",
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "attachment"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Media"
+        ],
+        "description": "Get a list of media",
+        "x-swagger-router-controller": "api.media",
+        "operationId": "get",
+        "responses": {
+          "200": {
+            "description": "List of media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Media"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/{id}": {
+      "get": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Media"
+        ],
+        "x-swagger-router-controller": "api.media",
+        "operationId": "get_for_source",
+        "summary": "Query media for a specific task or project",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Return Media",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Media"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Media does not exist"
+          }
+        }
+      },
+      "/media/source/{id}": null,
+      "delete": {
+        "security": [
+          {
+            "apiKeyHeader": [
+
+            ]
+          }
+        ],
+        "tags": [
+          "Media"
+        ],
+        "x-swagger-router-controller": "api.media",
+        "operationId": "delete",
+        "summary": "Delete a single Media file",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Media deleted"
+          },
+          "404": {
+            "description": "Media does not exist"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "id": {
+        "name": "id",
+        "description": "The unique identifer for an Object (i.e. User, Task, Project, Submission etc)",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9-]+$"
+        }
+      }
+    },
+    "requestBodies": {
+      "Submission": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Submission"
+            }
+          }
+        }
+      },
+      "Project": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Project"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "apiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-KEY"
+      },
+      "oauth2": {
+        "type": "oauth2",
+        "x-tokenInfoUrl": "http://localhost:8081/api/v1/users/validate",
+        "flows": {
+          "implicit": {
+            "authorizationUrl": "http://localhost:8081/oauth/authorize",
+            "scopes": {
+              "apiKey": "Unique identifier of the user accessing the service."
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Users": {
+        "type": "object",
+        "required": [
+          "email",
+          "pwd"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 20,
+            "readOnly": true
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "pwd": {
+            "type": "string"
+          },
+          "api_key": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "example": "2015-07-07T15:49:51.230+02:00",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "example": "2015-07-07T15:49:51.230+02:00",
+            "readOnly": true
+          }
+        }
+      },
+      "Otoken": {
+        "type": "object",
+        "required": [
+          "user_id",
+          "project_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "example": "2015-07-07T15:49:51.230+02:00",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "example": "2015-07-07T15:49:51.230+02:00",
+            "readOnly": true
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "platform"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Unique project ID"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "Desktop",
+              "Mobile",
+              "Both"
+            ]
+          },
+          "owned_by": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "example": "2015-07-07T15:49:51.230+02:00",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "example": "2015-07-07T15:49:51.230+02:00",
+            "readOnly": true
+          }
+        }
+      },
+      "Media": {
+        "type": "object",
+        "required": [
+          "id",
+          "path"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Uniqe media ID"
+          },
+          "source_id": {
+            "type": "string",
+            "description": "linking to a task or a submission"
+          },
+          "path": {
+            "type": "string",
+            "description": "location on filesystem"
+          },
+          "name": {
+            "type": "string"
+          },
+          "filetype": {
+            "type": "string"
+          }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "required": [
+          "project_id",
+          "sequence",
+          "title",
+          "content",
+          "required"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true,
+            "description": "Unique task ID"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "object"
+          },
+          "title": {
+            "type": "string"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "example": "2015-07-07T15:49:51.230+02:00",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation time",
+            "example": "2015-07-07T15:49:51.230+02:00",
+            "readOnly": true
+          }
+        }
+      },
+      "Submission": {
+        "type": "object",
+        "required": [
+          "task_id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "readOnly": true
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}

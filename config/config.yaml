@@ -1,0 +1,19 @@
+
+openapi:
+  path: ./swagger/openapi.json
+server:
+  staticDir: .
+  port: 6666
+system-db:
+  parent-stmt: CREATE TABLE IF NOT EXISTS base (id VARCHAR PRIMARY KEY, created_at date, modified_at date);
+  parent-fields:
+    - id
+    - created_at
+    - modified_at
+  reserved-words:
+    - user
+database:
+  type: postgres
+  conn: postgresql://pybossa:tester@localhost/cs
+  required: true
+
