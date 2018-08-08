@@ -1,4 +1,4 @@
-# openape
+# OpenAPE
 
 ## WHAT?
 
@@ -19,3 +19,16 @@ Simple, read in a `Swagger` file and a config file and OpenAPE will do all the `
 PR the heck out of this. This is a super early version (work started end of July 2018) and I do not pretend to be any form of Go expert. 
 
 If you are a beginner, check out the `TODO.md` file or look at open issues.
+
+---
+
+GET STARTED
+
+* As of now, this is not a Go package and is still in early stages. It will be packaged soon.
+
+1. `git clone https://github.com/encima/openape`
+
+2. Replace or use the config file and the swagger file (`json` format)
+
+3. `go run server.go`
+
