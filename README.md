@@ -30,5 +30,16 @@ If you are a beginner, check out the `TODO.md` file or look at open issues.
 
 ## GET STARTED
 
+1. `go get github.com/encima/openape`
+2. ```
+    package main
 
+    import (
+        "github.com/encima/openape"
+    )
+
+    func main() {
+        openape.NewServer("PATH/TO/CONFIG")
+    }
+    ```
 
