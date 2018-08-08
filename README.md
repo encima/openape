@@ -1,4 +1,7 @@
 # OpenAPE
+[![Build Status](https://travis-ci.org/encima/openape.svg?branch=master)](https://travis-ci.org/encima/openape)
+[![Go Report Card](https://goreportcard.com/badge/github.com/encima/openape)](https://goreportcard.com/report/github.com/encima/openape)
+[![GoDoc](https://godoc.org/github.com/encima/openape?status.svg)](https://godoc.org/github.com/encima/openape)
 
 ## WHAT?
 
