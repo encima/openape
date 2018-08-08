@@ -8,7 +8,7 @@ This already exists, you say? Why yes, yes it does. Many exist for OpenAPI 2 but
 
 ## WHY?
 
-For the past 3 years, I have worked on a number of different projects that have required creation of an API, `Swagger` made this much easier for the teams I was in but it could be better. Almost all models created require the basic HTTP verbs and supported actions (`PUT`, `DELETE` etc) but they are still coded by the developers. No more, I say!
+How much of web development consists of creating and maintaining an API that is marginally different from the last one? `Swagger` and `OpenAPI` has made this much easier with code generation tools and frameworks such as `Loopback`. Almost all models created require the basic HTTP verbs and supported actions (`PUT`, `DELETE` etc) but they are still coded by the developers. No more, We say!
 
 ## HOW?
 
@@ -22,13 +22,13 @@ If you are a beginner, check out the `TODO.md` file or look at open issues.
 
 ---
 
-GET STARTED
+## Requirements
 
-* As of now, this is not a Go package and is still in early stages. It will be packaged soon.
+* Postgres (remote or local)
+* Go
+* A config file (example can be found in the `config` folder
 
-1. `git clone https://github.com/encima/openape`
+## GET STARTED
 
-2. Replace or use the config file and the swagger file (`json` format)
 
-3. `go run server.go`
 
