@@ -1,7 +1,6 @@
 package openape
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -55,40 +54,15 @@ func LoadConfig(path string) {
 func (oape *OpenApe) AddRoute(path string, method string, model string) {
 	fmt.Printf("Adding route: %s \n", path)
 	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		// var res []interface{}
-		qString := fmt.Sprintf("SELECT * FROM %s", model)
-		rows, err := oape.db.Query(qString)
-		if err != nil {
-			w.Write([]byte("Error"))
-			fmt.Println(err)
-		} else {
-			defer rows.Close()
-
-			columns, _ := rows.Columns()
-			var v struct {
-				Data []interface{} // `json:"data"`
-			}
-
-			for rows.Next() {
-				values := make([]interface{}, len(columns))
-				valuePtrs := make([]interface{}, len(columns))
-				for i := range columns {
-					valuePtrs[i] = &values[i]
-				}
-				if err := rows.Scan(valuePtrs...); err != nil {
-					log.Fatal(err)
-				}
-				var m map[string]interface{}
-				m = make(map[string]interface{})
-				for i := range columns {
-					m[columns[i]] = values[i]
-				}
-				v.Data = append(v.Data, m)
-			}
-			jsonMsg, _ := json.Marshal(v)
-			w.Write(jsonMsg)
+		var res []byte
+		switch method {
+		case "GET":
+			res = oape.GetModels(model)
+			break
+		default:
+			break
 		}
-		w.Write([]byte(path))
+		w.Write(res)
 	}).Methods(method)
 }
 
