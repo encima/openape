@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // used for db connection
@@ -52,5 +53,16 @@ func (oape *OpenApe) GetModels(model string) []byte {
 		jsonMsg, _ := json.Marshal(v)
 		return jsonMsg
 	}
+	return nil
+}
+
+// PostModel finds the model to be created and inserts the record
+func (oape *OpenApe) PostModel(model string, r *http.Request) []byte {
+	r.ParseForm()
+	for k, v := range r.Form {
+		fmt.Printf("%s: %s", k, v)
+	}
+	// TODO get model and values associated with it, extract from request using FormValue(<field>)
+	// TODO build insert request
 	return nil
 }

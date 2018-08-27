@@ -59,6 +59,9 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 		case "GET":
 			res = oape.GetModels(model)
 			break
+		case "POST":
+			res = oape.PostModel(model, r)
+			break
 		default:
 			break
 		}
