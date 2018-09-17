@@ -149,14 +149,17 @@ func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
 			oape.AddRoute(k, "POST", model)
 		}
 		if op := v.GetOperation("DELETE"); op != nil {
-			oape.AddRoute(k, "POST", model)
+			oape.AddRoute(k, "DELETE", model)
 		}
 	}
 }
 
 // RunServer starts the openapi server on the specified port
 func (oape *OpenApe) RunServer() {
-	port := fmt.Sprintf(":%s", oape.swagger.Servers[0].Variables["port"].Default)
+	port := ":8080" // Following the open api docs, the default URL should be /
+	// if len(oape.swagger.Servers) > 0 {
+	// 	port = oape.swagger.Servers[0].Variables["port"].Default.(string)
+	// }
 	log.Fatal(http.ListenAndServe(port, oape.router))
 }
 
@@ -176,7 +179,9 @@ func NewServer(configPath string) OpenApe {
 
 	o := OpenApe{dbEngine, r, swagger, viper.GetViper()}
 	o.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
-	o.router = o.router.PathPrefix(o.swagger.Servers[0].Variables["basePath"].Default.(string)).Subrouter()
+	if len(o.swagger.Servers) > 0 && o.swagger.Servers[0].Variables["basePath"] != nil {
+		o.router = o.router.PathPrefix("/api/v1").Subrouter()
+	}
 
 	// set up with routes and models to DB and Router
 	o.MapModels(swagger.Components.Schemas)
