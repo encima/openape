@@ -54,3 +54,9 @@ func (oape *OpenApe) GetModels(model string) []byte {
 	}
 	return nil
 }
+
+// PostModels handles POST requests and inserts models
+func (oape *OpenApe) PostModels(model string) []byte {
+
+	return nil
+}
