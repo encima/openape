@@ -32,7 +32,7 @@ const (
 
 var (
 	pgBaseTypes     = []string{"id", "created_at", "updated_at"}
-	pgReservedWords = []string{"user"}
+	pgReservedWords = []string{"user", "group"}
 )
 
 // RootHandler responds to / request
@@ -156,10 +156,10 @@ func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
 
 // RunServer starts the openapi server on the specified port
 func (oape *OpenApe) RunServer() {
-	port := ":8080" // Following the open api docs, the default URL should be /
-	// if len(oape.swagger.Servers) > 0 {
-	// 	port = oape.swagger.Servers[0].Variables["port"].Default.(string)
-	// }
+	port := ":8080"
+	if len(oape.swagger.Servers) > 0 {
+		port = oape.swagger.Servers[0].Variables["port"].Default.(string)
+	}
 	log.Fatal(http.ListenAndServe(port, oape.router))
 }
 
