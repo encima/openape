@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Jeffail/gabs"
+	"github.com/buger/jsonparser"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // used for db connection
 	"github.com/spf13/viper"
@@ -64,32 +64,29 @@ func (oape *OpenApe) PostModel(model string, r *http.Request) []byte {
 	// TODO only parse form when you know it is form, body is unreadable after this
 	m := oape.swagger.Components.Schemas[model]
 	body, err := ioutil.ReadAll(r.Body)
-	fmt.Println(string(body))
-	jsonParsed, err := gabs.ParseJSON(body)
 	if err != nil {
 		panic(err)
 	}
-	for i := range m.Value.Properties {
-		print(i)
-		// TODO look for keys here and see if they match the object
-		// TODO split into validation function (utils)
-	}
 
-	value, _ := jsonParsed.Path("name").Data().(string)
-	print(value)
-	/*if m != nil {
+	if m != nil {
 		reqKeys := m.Value.Required // all required properties of the matching model
-		for k, v := range r.Form {
-			fmt.Printf("%s: %s", k, v)
-			for mk, _ := range m.Value.Properties {
-				if k == mk && StringExists(k, reqKeys) {
-					fmt.Println("Found required")
-				}
+		for i := range reqKeys {
+			_, dt, _, err := jsonparser.Get(body, reqKeys[i])
+			if dt == jsonparser.NotExist || err != nil {
+				fmt.Printf("Required key %s is not present \n", reqKeys[i])
 			}
+			// TODO look for keys here and see if they match the object
+			// TODO split into validation function (utils)
 		}
-	}*/
 
-	// TODO get model and values associated with it, extract from request using FormValue(<field>)
+		var vHandler func([]byte, []byte, jsonparser.ValueType, int) error
+		vHandler = func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+			fmt.Printf("%s: %s \n", string(key), string(value))
+
+			return nil
+		}
+		jsonparser.ObjectEach(body, vHandler)
+	}
 	// TODO build insert request
 	return nil
 }
