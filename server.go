@@ -54,18 +54,16 @@ func LoadConfig(path string) {
 func (oape *OpenApe) AddRoute(path string, method string, model string) {
 	fmt.Printf("Adding route: %s \n", path)
 	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		var res []byte
 		switch method {
 		case "GET":
-			res = oape.GetModels(model)
+			oape.GetModels(w, model)
 			break
 		case "POST":
-			res = oape.PostModel(model, r)
+			oape.PostModel(w, model, r)
 			break
 		default:
 			break
 		}
-		w.Write(res)
 	}).Methods(method)
 }
 
@@ -138,6 +136,7 @@ func (oape *OpenApe) GetModelFromPath(path string) string {
 // MapRoutes iterates the paths laid out in the swagger file and adds them to the router
 func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
 	for k, v := range paths {
+		// TODO handle when user specifies function and do not pass to route
 		model := oape.GetModelFromPath(k)
 		if op := v.GetOperation("GET"); op != nil {
 			oape.AddRoute(k, "GET", model)
