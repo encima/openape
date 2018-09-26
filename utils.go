@@ -1,7 +1,9 @@
 package openape
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -36,4 +38,14 @@ func LoadSwagger(p string) *openapi3.Swagger {
 
 	fmt.Println(swagger.Servers[0])
 	return swagger
+}
+
+// SendResponse handles writing json responses back to the client using http response writer
+func SendResponse(w http.ResponseWriter, code int, message interface{}, content string) {
+	payload, _ := json.Marshal(message)
+
+	w.Header().Set("Content-Type", content)
+	w.WriteHeader(code)
+	w.Write(payload)
+
 }

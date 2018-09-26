@@ -32,7 +32,7 @@ const (
 
 var (
 	pgBaseTypes     = []string{"id", "created_at", "updated_at"}
-	pgReservedWords = []string{"user"}
+	pgReservedWords = []string{"user", "group"}
 )
 
 // RootHandler responds to / request
@@ -54,17 +54,18 @@ func LoadConfig(path string) {
 func (oape *OpenApe) AddRoute(path string, method string, model string) {
 	fmt.Printf("Adding route: %s \n", path)
 	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-		var res []byte
 		switch method {
 		case "GET":
-			res = oape.GetModels(model)
+			oape.GetModels(w, model)
+			break
+		case "POST":
+			oape.PostModel(w, model, r)
 			break
 		case "POST":
 			res = oape.PostModel(model)
 		default:
 			break
 		}
-		w.Write(res)
 	}).Methods(method)
 }
 
@@ -137,6 +138,7 @@ func (oape *OpenApe) GetModelFromPath(path string) string {
 // MapRoutes iterates the paths laid out in the swagger file and adds them to the router
 func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
 	for k, v := range paths {
+		// TODO handle when user specifies function and do not pass to route
 		model := oape.GetModelFromPath(k)
 		if op := v.GetOperation("GET"); op != nil {
 			oape.AddRoute(k, "GET", model)
@@ -148,14 +150,17 @@ func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
 			oape.AddRoute(k, "POST", model)
 		}
 		if op := v.GetOperation("DELETE"); op != nil {
-			oape.AddRoute(k, "POST", model)
+			oape.AddRoute(k, "DELETE", model)
 		}
 	}
 }
 
 // RunServer starts the openapi server on the specified port
 func (oape *OpenApe) RunServer() {
-	port := fmt.Sprintf(":%s", oape.swagger.Servers[0].Variables["port"].Default)
+	port := ":8080"
+	if len(oape.swagger.Servers) > 0 {
+		port = oape.swagger.Servers[0].Variables["port"].Default.(string)
+	}
 	log.Fatal(http.ListenAndServe(port, oape.router))
 }
 
@@ -175,7 +180,9 @@ func NewServer(configPath string) OpenApe {
 
 	o := OpenApe{dbEngine, r, swagger, viper.GetViper()}
 	o.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
-	o.router = o.router.PathPrefix(o.swagger.Servers[0].Variables["basePath"].Default.(string)).Subrouter()
+	if len(o.swagger.Servers) > 0 && o.swagger.Servers[0].Variables["basePath"] != nil {
+		o.router = o.router.PathPrefix("/api/v1").Subrouter()
+	}
 
 	// set up with routes and models to DB and Router
 	o.MapModels(swagger.Components.Schemas)
