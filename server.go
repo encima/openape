@@ -61,8 +61,8 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 		case "POST":
 			oape.PostModel(w, model, r)
 			break
-		case "POST":
-			res = oape.PostModel(model)
+		case "PUT":
+			break
 		default:
 			break
 		}
@@ -79,8 +79,9 @@ func (oape *OpenApe) MapModels(models map[string]*openapi3.SchemaRef) {
 	}
 	fmt.Println(res)
 
+	var createBytes strings.Builder
 	for k, v := range models {
-		tableInsert := fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", k)
+		createBytes.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", k))
 		if StringExists(k, pgReservedWords) {
 			panic(fmt.Errorf("Reserved word found, table cannot be created"))
 		}
@@ -108,16 +109,18 @@ func (oape *OpenApe) MapModels(models map[string]*openapi3.SchemaRef) {
 				}
 				break
 			}
-			tableInsert += fmt.Sprintf("%s %s", k, dbType)
+			createBytes.WriteString(fmt.Sprintf("%s %s", k, dbType))
 			if k == "id" {
-				tableInsert += " PRIMARY KEY,"
+				createBytes.WriteString(" PRIMARY KEY,")
 			} else {
-				tableInsert += ","
+				createBytes.WriteString(",")
 			}
 		}
-		tableInsert = tableInsert[:len(tableInsert)-1]
-		tableInsert += ") INHERITS (base_type);"
-		_, err := oape.db.Exec(tableInsert)
+		createStmt := createBytes.String()
+		createBytes.Reset()
+		createStmt = createStmt[:len(createStmt)-1]
+		createStmt += ") INHERITS (base_type);"
+		_, err := oape.db.Exec(createStmt)
 		if err != nil {
 			panic(fmt.Errorf("Problem creating table for %s: %s", k, err))
 		}

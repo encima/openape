@@ -5,6 +5,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
+	"time"
+
+	"github.com/satori/go.uuid"
 
 	"github.com/buger/jsonparser"
 	"github.com/jmoiron/sqlx"
@@ -69,6 +73,7 @@ func (oape *OpenApe) PostModel(w http.ResponseWriter, model string, r *http.Requ
 
 	if m != nil {
 		reqKeys := m.Value.Required // all required properties of the matching model
+		keyCount := 0
 		for i := range reqKeys {
 			_, dt, _, err := jsonparser.Get(body, reqKeys[i])
 			if dt == jsonparser.NotExist || err != nil {
@@ -80,14 +85,55 @@ func (oape *OpenApe) PostModel(w http.ResponseWriter, model string, r *http.Requ
 		}
 
 		var vHandler func([]byte, []byte, jsonparser.ValueType, int) error
+		cols := make([]string, keyCount)
+		vals := make([]interface{}, keyCount)
 		vHandler = func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
 			fmt.Printf("%s: %s \n", string(key), string(value))
-
+			keyCount++
+			cols = append(cols, string(key))
+			vals = append(vals, string(value))
 			return nil
 		}
 		jsonparser.ObjectEach(body, vHandler)
-		// TODO build insert request
-		SendResponse(w, 200, map[string]string{"res": string(body)}, "application/json")
+		if !StringExists("id", cols) {
+			cols = append(cols, "id")
+			u2 := uuid.Must(uuid.NewV4())
+			vals = append(vals, u2.String())
+		}
+		cols = append(cols, "created_at")
+		vals = append(vals, time.Now().Format(time.UnixDate))
+		if len(cols) == len(vals) {
+			var insertBytes strings.Builder
+			var colsBytes strings.Builder
+			var valsBytes strings.Builder
+			insertBytes.WriteString(fmt.Sprintf("INSERT INTO %s (", model))
+			index := 0
+			for k := range cols {
+				index++
+				// TODO handle different data types here (encode json, quote strings, format datetimes etc)
+				if index != len(cols) {
+					colsBytes.WriteString(fmt.Sprintf("%s, ", cols[k]))
+					valsBytes.WriteString(fmt.Sprintf("'%s', ", vals[k]))
+				} else {
+					colsBytes.WriteString(fmt.Sprintf("%s)", cols[k]))
+					valsBytes.WriteString(fmt.Sprintf("'%s');", vals[k]))
+				}
+			}
+
+			insertBytes.WriteString(fmt.Sprintf("%s VALUES (%s", colsBytes.String(), valsBytes.String()))
+			fmt.Println(insertBytes.String())
+			_, err := oape.db.Exec(insertBytes.String())
+			if err != nil {
+				err := fmt.Sprintf("Problem inserting into table for %s: %s", model, err)
+				SendResponse(w, 404, map[string]string{"error": err}, "application/json")
+				return
+			}
+			SendResponse(w, 200, map[string]string{"res": "Inserted successfully"}, "application/json")
+			return
+		}
+		SendResponse(w, 404, map[string]string{"error": "Object keys not equal to number of values"}, "application/json")
+		return
+
 	}
 
 }
