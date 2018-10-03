@@ -78,53 +78,8 @@ func (oape *OpenApe) MapModels(models map[string]*openapi3.SchemaRef) {
 		panic(fmt.Errorf("Problem creating BASE table %s", err))
 	}
 	fmt.Println(res)
-
-	var createBytes strings.Builder
 	for k, v := range models {
-		createBytes.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", k))
-		if StringExists(k, pgReservedWords) {
-			panic(fmt.Errorf("Reserved word found, table cannot be created"))
-		}
-
-		for k, v := range v.Value.Properties {
-			vType := v.Value.Type
-			// remove fields that already exist in the `base` parent table
-			if StringExists(k, pgBaseTypes) {
-				continue
-			}
-			dbType := "varchar"
-			switch vType {
-			case "integer":
-				dbType = "integer"
-				break
-			case "object":
-				dbType = "json"
-				break
-			case "boolean":
-				dbType = "Boolean"
-				break
-			default:
-				if v.Value.Format == "date-time" {
-					dbType = "date"
-				}
-				break
-			}
-			createBytes.WriteString(fmt.Sprintf("%s %s", k, dbType))
-			if k == "id" {
-				createBytes.WriteString(" PRIMARY KEY,")
-			} else {
-				createBytes.WriteString(",")
-			}
-		}
-		createStmt := createBytes.String()
-		createBytes.Reset()
-		createStmt = createStmt[:len(createStmt)-1]
-		createStmt += ") INHERITS (base_type);"
-		_, err := oape.db.Exec(createStmt)
-		if err != nil {
-			panic(fmt.Errorf("Problem creating table for %s: %s", k, err))
-		}
-		fmt.Printf("Table %s created \n", k)
+		oape.CreateTable(k, v.Value.Properties)
 	}
 }
 

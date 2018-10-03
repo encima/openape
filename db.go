@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/satori/go.uuid"
-
 	"github.com/buger/jsonparser"
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // used for db connection
+	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
 )
 
@@ -23,6 +23,55 @@ func DatabaseConnect() *sqlx.DB {
 		panic(fmt.Errorf("Error connecting to database: %s", err))
 	}
 	return engine
+}
+
+// CreateTable generates a creation string from a model and executes
+func (oape *OpenApe) CreateTable(k string, props map[string]*openapi3.SchemaRef) {
+	var createBytes strings.Builder
+	createBytes.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", k))
+	if StringExists(k, pgReservedWords) {
+		panic(fmt.Errorf("Reserved word found, table cannot be created"))
+	}
+
+	for k, v := range props {
+		vType := v.Value.Type
+		// remove fields that already exist in the `base` parent table
+		if StringExists(k, pgBaseTypes) {
+			continue
+		}
+		dbType := "varchar"
+		switch vType {
+		case "integer":
+			dbType = "integer"
+			break
+		case "object":
+			dbType = "json"
+			break
+		case "boolean":
+			dbType = "Boolean"
+			break
+		default:
+			if v.Value.Format == "date-time" {
+				dbType = "date"
+			}
+			break
+		}
+		createBytes.WriteString(fmt.Sprintf("%s %s", k, dbType))
+		if k == "id" {
+			createBytes.WriteString(" PRIMARY KEY,")
+		} else {
+			createBytes.WriteString(",")
+		}
+	}
+	createStmt := createBytes.String()
+	createBytes.Reset()
+	createStmt = createStmt[:len(createStmt)-1]
+	createStmt += ") INHERITS (base_type);"
+	_, err := oape.db.Exec(createStmt)
+	if err != nil {
+		panic(fmt.Errorf("Problem creating table for %s: %s", k, err))
+	}
+	fmt.Printf("Table %s created \n", k)
 }
 
 // GetModels queries a table of a model and returns all those that match
@@ -128,6 +177,7 @@ func (oape *OpenApe) PostModel(w http.ResponseWriter, model string, r *http.Requ
 				SendResponse(w, 404, map[string]string{"error": err}, "application/json")
 				return
 			}
+			// TODO get ID and return here (or whole object?)
 			SendResponse(w, 200, map[string]string{"res": "Inserted successfully"}, "application/json")
 			return
 		}
