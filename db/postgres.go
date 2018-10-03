@@ -1,4 +1,4 @@
-package openape
+package db
 
 import (
 	"fmt"
@@ -9,11 +9,26 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
+	"github.com/encima/openape/utils"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq" // used for db connection
 	"github.com/satori/go.uuid"
 	"github.com/spf13/viper"
+)
+
+// Database holds the db connection and sould implement support for creation, retrieval, adding, updating and deleting
+type Database struct {
+	Conn *sqlx.DB
+}
+
+const (
+	baseCreationString string = "CREATE TABLE IF NOT EXISTS base_type (id VARCHAR PRIMARY KEY, created_at date, updated_at date);"
+)
+
+var (
+	pgBaseTypes     = []string{"id", "created_at", "updated_at"}
+	pgReservedWords = []string{"user", "group"}
 )
 
 // DatabaseConnect loads connection strings from the config file and connects to the specified DB
@@ -25,18 +40,25 @@ func DatabaseConnect() *sqlx.DB {
 	return engine
 }
 
-// CreateTable generates a creation string from a model and executes
-func (oape *OpenApe) CreateTable(k string, props map[string]*openapi3.SchemaRef) {
+// CreateSchema generates a creation string from a model and executes
+func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) {
+	// Create parent table
+	res, err := db.Conn.Exec(baseCreationString)
+	if err != nil {
+		fmt.Println(err)
+		panic(fmt.Errorf("Problem creating BASE table %s", err))
+	}
+	fmt.Println(res)
 	var createBytes strings.Builder
 	createBytes.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", k))
-	if StringExists(k, pgReservedWords) {
+	if utils.StringExists(k, pgReservedWords) {
 		panic(fmt.Errorf("Reserved word found, table cannot be created"))
 	}
 
 	for k, v := range props {
 		vType := v.Value.Type
 		// remove fields that already exist in the `base` parent table
-		if StringExists(k, pgBaseTypes) {
+		if utils.StringExists(k, pgBaseTypes) {
 			continue
 		}
 		dbType := "varchar"
@@ -67,7 +89,7 @@ func (oape *OpenApe) CreateTable(k string, props map[string]*openapi3.SchemaRef)
 	createBytes.Reset()
 	createStmt = createStmt[:len(createStmt)-1]
 	createStmt += ") INHERITS (base_type);"
-	_, err := oape.db.Exec(createStmt)
+	_, err = db.Conn.Exec(createStmt)
 	if err != nil {
 		panic(fmt.Errorf("Problem creating table for %s: %s", k, err))
 	}
@@ -75,9 +97,9 @@ func (oape *OpenApe) CreateTable(k string, props map[string]*openapi3.SchemaRef)
 }
 
 // GetModels queries a table of a model and returns all those that match
-func (oape *OpenApe) GetModels(w http.ResponseWriter, model string) {
+func (db Database) GetModels(w http.ResponseWriter, model string) {
 	qString := fmt.Sprintf("SELECT * FROM %s", model)
-	rows, err := oape.db.Query(qString)
+	rows, err := db.Conn.Query(qString)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -107,28 +129,28 @@ func (oape *OpenApe) GetModels(w http.ResponseWriter, model string) {
 	}
 	// jsonMsg, _ := json.Marshal(v)
 	// TODO set content type from swagger and handle in method
-	SendResponse(w, 200, v, "application/json")
+	utils.SendResponse(w, 200, v, "application/json")
 }
 
 // PostModel finds the model to be created and inserts the record
-func (oape *OpenApe) PostModel(w http.ResponseWriter, model string, r *http.Request) {
+func (db Database) PostModel(w http.ResponseWriter, modelName string, model *openapi3.SchemaRef, r *http.Request) {
 	// r.ParseForm()
 	// TODO only parse form when you know it is form, body is unreadable after this
-	m := oape.swagger.Components.Schemas[model]
+
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return
 	}
 
-	if m != nil {
-		reqKeys := m.Value.Required // all required properties of the matching model
+	if model != nil {
+		reqKeys := model.Value.Required // all required properties of the matching model
 		keyCount := 0
 		for i := range reqKeys {
 			_, dt, _, err := jsonparser.Get(body, reqKeys[i])
 			if dt == jsonparser.NotExist || err != nil {
 				msg := fmt.Sprintf("Required key '%s' is not present", reqKeys[i])
 				e := map[string]string{"error": msg}
-				SendResponse(w, 400, e, "application/json")
+				utils.SendResponse(w, 400, e, "application/json")
 				return
 			}
 		}
@@ -144,7 +166,7 @@ func (oape *OpenApe) PostModel(w http.ResponseWriter, model string, r *http.Requ
 			return nil
 		}
 		jsonparser.ObjectEach(body, vHandler)
-		if !StringExists("id", cols) {
+		if !utils.StringExists("id", cols) {
 			cols = append(cols, "id")
 			u2 := uuid.Must(uuid.NewV4())
 			vals = append(vals, u2.String())
@@ -155,7 +177,7 @@ func (oape *OpenApe) PostModel(w http.ResponseWriter, model string, r *http.Requ
 			var insertBytes strings.Builder
 			var colsBytes strings.Builder
 			var valsBytes strings.Builder
-			insertBytes.WriteString(fmt.Sprintf("INSERT INTO %s (", model))
+			insertBytes.WriteString(fmt.Sprintf("INSERT INTO %s (", modelName))
 			index := 0
 			for k := range cols {
 				index++
@@ -171,25 +193,19 @@ func (oape *OpenApe) PostModel(w http.ResponseWriter, model string, r *http.Requ
 
 			insertBytes.WriteString(fmt.Sprintf("%s VALUES (%s", colsBytes.String(), valsBytes.String()))
 			fmt.Println(insertBytes.String())
-			_, err := oape.db.Exec(insertBytes.String())
+			_, err := db.Conn.Exec(insertBytes.String())
 			if err != nil {
-				err := fmt.Sprintf("Problem inserting into table for %s: %s", model, err)
-				SendResponse(w, 404, map[string]string{"error": err}, "application/json")
+				err := fmt.Sprintf("Problem inserting into table for %s: %s", modelName, err)
+				utils.SendResponse(w, 404, map[string]string{"error": err}, "application/json")
 				return
 			}
 			// TODO get ID and return here (or whole object?)
-			SendResponse(w, 200, map[string]string{"res": "Inserted successfully"}, "application/json")
+			utils.SendResponse(w, 200, map[string]string{"res": "Inserted successfully"}, "application/json")
 			return
 		}
-		SendResponse(w, 404, map[string]string{"error": "Object keys not equal to number of values"}, "application/json")
+		utils.SendResponse(w, 404, map[string]string{"error": "Object keys not equal to number of values"}, "application/json")
 		return
 
 	}
 
-}
-
-// PostModels handles POST requests and inserts models
-func (oape *OpenApe) PostModels(model string) []byte {
-
-	return nil
 }

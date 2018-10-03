@@ -1,4 +1,4 @@
-package openape
+package utils
 
 import (
 	"encoding/json"
@@ -8,6 +8,12 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 )
+
+// JSONResponse is alias of map for JSON response
+type JSONResponse struct {
+	data   map[string]interface{}
+	status int
+}
 
 // StringExists checks for a needle (string) in a haystack (array)
 func StringExists(needle string, haystack []string) bool {

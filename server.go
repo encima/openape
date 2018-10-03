@@ -6,24 +6,19 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/encima/openape/db"
+	"github.com/encima/openape/utils"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx"
 	"github.com/spf13/viper"
 )
 
 // OpenApe object to hold objects related to the server
 type OpenApe struct {
-	db      *sqlx.DB
+	db      db.Database
 	router  *mux.Router
 	swagger *openapi3.Swagger
 	config  *viper.Viper
-}
-
-// JSONResponse is alias of map for JSON response
-type JSONResponse struct {
-	data   map[string]interface{}
-	status int
 }
 
 const (
@@ -56,10 +51,11 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		switch method {
 		case "GET":
-			oape.GetModels(w, model)
+			oape.db.GetModels(w, model)
 			break
 		case "POST":
-			oape.PostModel(w, model, r)
+			m := oape.swagger.Components.Schemas[model]
+			oape.db.PostModel(w, model, m, r)
 			break
 		case "PUT":
 			break
@@ -71,15 +67,8 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 
 // MapModels reads the models from the provided swagger file and creates the correspdonding tables in Postgres
 func (oape *OpenApe) MapModels(models map[string]*openapi3.SchemaRef) {
-	// Create parent table
-	res, err := oape.db.Exec(baseCreationString)
-	if err != nil {
-		fmt.Println(err)
-		panic(fmt.Errorf("Problem creating BASE table %s", err))
-	}
-	fmt.Println(res)
 	for k, v := range models {
-		oape.CreateTable(k, v.Value.Properties)
+		oape.db.CreateSchema(k, v.Value.Properties)
 	}
 }
 
@@ -131,12 +120,13 @@ func NewServer(configPath string) OpenApe {
 
 	staticDir := viper.GetString("server.static")
 
-	dbEngine := DatabaseConnect()
+	dbEngine := db.DatabaseConnect()
 
 	oapiPath := viper.GetString("openapi.path")
-	swagger := LoadSwagger(oapiPath)
+	swagger := utils.LoadSwagger(oapiPath)
 
-	o := OpenApe{dbEngine, r, swagger, viper.GetViper()}
+	odb := db.Database{dbEngine}
+	o := OpenApe{odb, r, swagger, viper.GetViper()}
 	o.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 	if len(o.swagger.Servers) > 0 && o.swagger.Servers[0].Variables["basePath"] != nil {
 		o.router = o.router.PathPrefix("/api/v1").Subrouter()
