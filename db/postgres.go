@@ -275,3 +275,19 @@ func (db Database) PutModel(w http.ResponseWriter, id string, modelName string, 
 	}
 
 }
+
+// DeleteModel removes an existing entry
+func (db Database) DeleteModel(w http.ResponseWriter, id string, modelName string, r *http.Request) {
+	var deleteBytes strings.Builder
+	deleteBytes.WriteString(fmt.Sprintf("DELETE FROM %s WHERE id = '%s';", modelName, id))
+	fmt.Println(deleteBytes.String())
+	_, err := db.Conn.Exec(deleteBytes.String())
+	if err != nil {
+		err := fmt.Sprintf("Problem updating  %s: %s", modelName, err)
+		utils.SendResponse(w, 404, map[string]string{"error": err}, "application/json")
+		return
+	}
+	// TODO get ID and return here (or whole object?)
+	utils.SendResponse(w, 201, map[string]string{"res": "Deleted successfully"}, "application/json")
+	return
+}

@@ -62,6 +62,10 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 			vars := mux.Vars(r)
 			oape.db.PutModel(w, vars["id"], model, m, r)
 			break
+		case "DELETE":
+			vars := mux.Vars(r)
+			oape.db.DeleteModel(w, vars["id"], model, r)
+			break
 		default:
 			break
 		}
