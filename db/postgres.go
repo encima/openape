@@ -98,6 +98,7 @@ func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) 
 
 // GetModels queries a table of a model and returns all those that match
 func (db Database) GetModels(w http.ResponseWriter, model string) {
+	// TODO handle select columns
 	qString := fmt.Sprintf("SELECT * FROM %s", model)
 	rows, err := db.Conn.Query(qString)
 	if err != nil {
@@ -203,7 +204,72 @@ func (db Database) PostModel(w http.ResponseWriter, modelName string, model *ope
 			utils.SendResponse(w, 200, map[string]string{"res": "Inserted successfully"}, "application/json")
 			return
 		}
-		utils.SendResponse(w, 404, map[string]string{"error": "Object keys not equal to number of values"}, "application/json")
+		utils.SendResponse(w, 400, map[string]string{"error": "Object keys not equal to number of values"}, "application/json")
+		return
+
+	}
+
+}
+
+// PutModel updates an existing entry
+func (db Database) PutModel(w http.ResponseWriter, id string, modelName string, model *openapi3.SchemaRef, r *http.Request) {
+	// r.ParseForm()
+	// TODO only parse form when you know it is form, body is unreadable after this
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+
+	if model != nil {
+		reqKeys := model.Value.Required // all required properties of the matching model
+		keyCount := 0
+		for i := range reqKeys {
+			_, dt, _, err := jsonparser.Get(body, reqKeys[i])
+			if dt == jsonparser.NotExist || err != nil {
+				msg := fmt.Sprintf("Required key '%s' is not present", reqKeys[i])
+				e := map[string]string{"error": msg}
+				utils.SendResponse(w, 400, e, "application/json")
+				return
+			}
+		}
+		var vHandler func([]byte, []byte, jsonparser.ValueType, int) error
+		cols := make([]string, keyCount)
+		vals := make([]interface{}, keyCount)
+		vHandler = func(key []byte, value []byte, dataType jsonparser.ValueType, offset int) error {
+			fmt.Printf("%s: %s \n", string(key), string(value))
+			cols = append(cols, string(key))
+			vals = append(vals, string(value))
+			return nil
+		}
+		jsonparser.ObjectEach(body, vHandler)
+
+		if len(cols) == len(vals) {
+			var updateBytes strings.Builder
+			updateBytes.WriteString(fmt.Sprintf("UPDATE %s SET", modelName))
+			index := 0
+			for k := range cols {
+				index++
+				// TODO handle different data types here (encode json, quote strings, format datetimes etc)
+				if index != len(cols) {
+					updateBytes.WriteString(fmt.Sprintf(" %s = '%s',", cols[k], vals[k]))
+				} else {
+					// TODO split this up
+					updateBytes.WriteString(fmt.Sprintf("%s = '%s', %s = '%s' WHERE id = '%s'; ", cols[k], vals[k], "updated_at", time.Now().Format(time.UnixDate), id))
+				}
+			}
+			fmt.Println(updateBytes.String())
+			_, err := db.Conn.Exec(updateBytes.String())
+			if err != nil {
+				err := fmt.Sprintf("Problem updating  %s: %s", modelName, err)
+				utils.SendResponse(w, 404, map[string]string{"error": err}, "application/json")
+				return
+			}
+			// TODO get ID and return here (or whole object?)
+			utils.SendResponse(w, 201, map[string]string{"res": "Updated successfully"}, "application/json")
+			return
+		}
+		utils.SendResponse(w, 400, map[string]string{"error": "Object keys not equal to number of values"}, "application/json")
 		return
 
 	}

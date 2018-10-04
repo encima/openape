@@ -58,6 +58,9 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 			oape.db.PostModel(w, model, m, r)
 			break
 		case "PUT":
+			m := oape.swagger.Components.Schemas[model]
+			vars := mux.Vars(r)
+			oape.db.PutModel(w, vars["id"], model, m, r)
 			break
 		default:
 			break
