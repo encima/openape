@@ -42,12 +42,6 @@ func (oape *OpenApe) APIAuthHandler(next http.Handler) http.Handler {
 			method := ramlPath.MethodByName(r.Method)
 			fmt.Println(method)
 			next.ServeHTTP(w, r)
-			// method := ramlPath.MethodByName(r.Method)
-			// for k, sec := range method.SecuredBy {
-			// 	fmt.Println(k, sec)
-
-			// }
-
 		}
 	})
 }

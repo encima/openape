@@ -54,7 +54,6 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		var res utils.JSONResponse
-		print(vars)
 		switch method {
 		case "GET":
 			res = oape.db.GetModels(model)
@@ -100,8 +99,6 @@ func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
 		// TODO handle when user specifies function and do not pass to route
 		model := oape.GetModelFromPath(k)
 		for opName := range v.Operations() {
-			// op := v.GetOperation(opName)
-			// print(op.Parameters)
 			oape.AddRoute(k, opName, model)
 		}
 	}
@@ -119,13 +116,7 @@ func (oape *OpenApe) MapRAMLResources() {
 	for _, resVal := range oape.ramlAPI.Resources {
 		model := resVal.Type.Name
 		for _, methodVal := range resVal.Methods {
-			switch methodVal.Name {
-			case "GET":
-				oape.AddRoute(resVal.URI, methodVal.Name, model)
-				break
-			default:
-				break
-			}
+			oape.AddRoute(resVal.URI, methodVal.Name, model)
 		}
 	}
 }
