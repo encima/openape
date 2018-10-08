@@ -1,6 +1,7 @@
 package db
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -97,21 +98,24 @@ func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) 
 }
 
 // GetModels queries a table of a model and returns all those that match
-func (db Database) GetModels(w http.ResponseWriter, model string) {
+func (db Database) GetModels(model string) utils.JSONResponse {
 	// TODO handle select columns
 	qString := fmt.Sprintf("SELECT * FROM %s", model)
+	print(qString)
+	// if len(id) > 0 {
+	// 	qString += fmt.Sprintf(" WHERE id = %s;", id)
+	// }
 	rows, err := db.Conn.Query(qString)
 	if err != nil {
-		fmt.Println(err)
-		return
+		msg := fmt.Sprintf("%s", err)
+		e, _ := json.Marshal(map[string]string{"error": msg})
+		return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 	}
 	defer rows.Close()
 
 	columns, _ := rows.Columns()
-	var v struct {
-		Data []interface{} // `json:"data"`
-	}
 
+	var v []interface{}
 	for rows.Next() {
 		values := make([]interface{}, len(columns))
 		valuePtrs := make([]interface{}, len(columns))
@@ -126,21 +130,22 @@ func (db Database) GetModels(w http.ResponseWriter, model string) {
 		for i := range columns {
 			m[columns[i]] = values[i]
 		}
-		v.Data = append(v.Data, m)
+		v = append(v, m)
 	}
-	// jsonMsg, _ := json.Marshal(v)
+	e, _ := json.Marshal(v)
 	// TODO set content type from swagger and handle in method
-	utils.SendResponse(w, 200, v, "application/json")
+	return utils.JSONResponse{Status: 200, Data: e, ContentType: "application/json"}
 }
 
 // PostModel finds the model to be created and inserts the record
-func (db Database) PostModel(w http.ResponseWriter, modelName string, model *openapi3.SchemaRef, r *http.Request) {
+func (db Database) PostModel(modelName string, model *openapi3.SchemaRef, r *http.Request) utils.JSONResponse {
 	// r.ParseForm()
 	// TODO only parse form when you know it is form, body is unreadable after this
-
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return
+		msg := fmt.Sprintf("%s", err)
+		e, _ := json.Marshal(map[string]string{"error": msg})
+		return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 	}
 
 	if model != nil {
@@ -150,9 +155,8 @@ func (db Database) PostModel(w http.ResponseWriter, modelName string, model *ope
 			_, dt, _, err := jsonparser.Get(body, reqKeys[i])
 			if dt == jsonparser.NotExist || err != nil {
 				msg := fmt.Sprintf("Required key '%s' is not present", reqKeys[i])
-				e := map[string]string{"error": msg}
-				utils.SendResponse(w, 400, e, "application/json")
-				return
+				e, _ := json.Marshal(map[string]string{"error": msg})
+				return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 			}
 		}
 
@@ -196,29 +200,35 @@ func (db Database) PostModel(w http.ResponseWriter, modelName string, model *ope
 			fmt.Println(insertBytes.String())
 			_, err := db.Conn.Exec(insertBytes.String())
 			if err != nil {
-				err := fmt.Sprintf("Problem inserting into table for %s: %s", modelName, err)
-				utils.SendResponse(w, 404, map[string]string{"error": err}, "application/json")
-				return
+				msg := fmt.Sprintf("%s", err)
+				e, _ := json.Marshal(map[string]string{"error": msg})
+				return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 			}
 			// TODO get ID and return here (or whole object?)
-			utils.SendResponse(w, 200, map[string]string{"res": "Inserted successfully"}, "application/json")
-			return
+			msg := "Created Successfully"
+			e, _ := json.Marshal(map[string]string{"msg": msg})
+			return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 		}
-		utils.SendResponse(w, 400, map[string]string{"error": "Object keys not equal to number of values"}, "application/json")
-		return
+		msg := "Number of keys is not equal to values provided"
+		e, _ := json.Marshal(map[string]string{"error": msg})
+		return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 
 	}
+	msg := "Model not found"
+	e, _ := json.Marshal(map[string]string{"error": msg})
+	return utils.JSONResponse{Data: e, Status: 404, ContentType: "application/json"}
 
 }
 
 // PutModel updates an existing entry
-func (db Database) PutModel(w http.ResponseWriter, id string, modelName string, model *openapi3.SchemaRef, r *http.Request) {
+func (db Database) PutModel(id string, modelName string, model *openapi3.SchemaRef, r *http.Request) utils.JSONResponse {
 	// r.ParseForm()
 	// TODO only parse form when you know it is form, body is unreadable after this
-
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return
+		msg := fmt.Sprintf("%s", err)
+		e, _ := json.Marshal(map[string]string{"error": msg})
+		return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 	}
 
 	if model != nil {
@@ -228,9 +238,8 @@ func (db Database) PutModel(w http.ResponseWriter, id string, modelName string, 
 			_, dt, _, err := jsonparser.Get(body, reqKeys[i])
 			if dt == jsonparser.NotExist || err != nil {
 				msg := fmt.Sprintf("Required key '%s' is not present", reqKeys[i])
-				e := map[string]string{"error": msg}
-				utils.SendResponse(w, 400, e, "application/json")
-				return
+				e, _ := json.Marshal(map[string]string{"error": msg})
+				return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 			}
 		}
 		var vHandler func([]byte, []byte, jsonparser.ValueType, int) error
@@ -261,33 +270,37 @@ func (db Database) PutModel(w http.ResponseWriter, id string, modelName string, 
 			fmt.Println(updateBytes.String())
 			_, err := db.Conn.Exec(updateBytes.String())
 			if err != nil {
-				err := fmt.Sprintf("Problem updating  %s: %s", modelName, err)
-				utils.SendResponse(w, 404, map[string]string{"error": err}, "application/json")
-				return
+				msg := fmt.Sprintf("%s", err)
+				e, _ := json.Marshal(map[string]string{"error": msg})
+				return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 			}
-			// TODO get ID and return here (or whole object?)
-			utils.SendResponse(w, 201, map[string]string{"res": "Updated successfully"}, "application/json")
-			return
+			// TODO get ID and return here (or whole object?)                                                   m
+			msg := "Updated Successfully"
+			e, _ := json.Marshal(map[string]string{"msg": msg})
+			return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 		}
-		utils.SendResponse(w, 400, map[string]string{"error": "Object keys not equal to number of values"}, "application/json")
-		return
-
+		msg := "Number of keys is not equal to values provided"
+		e, _ := json.Marshal(map[string]string{"error": msg})
+		return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 	}
+	msg := "Model not found"
+	e, _ := json.Marshal(map[string]string{"error": msg})
+	return utils.JSONResponse{Data: e, Status: 404, ContentType: "application/json"}
 
 }
 
 // DeleteModel removes an existing entry
-func (db Database) DeleteModel(w http.ResponseWriter, id string, modelName string, r *http.Request) {
+func (db Database) DeleteModel(id string, modelName string, r *http.Request) utils.JSONResponse {
 	var deleteBytes strings.Builder
 	deleteBytes.WriteString(fmt.Sprintf("DELETE FROM %s WHERE id = '%s';", modelName, id))
 	fmt.Println(deleteBytes.String())
 	_, err := db.Conn.Exec(deleteBytes.String())
 	if err != nil {
-		err := fmt.Sprintf("Problem updating  %s: %s", modelName, err)
-		utils.SendResponse(w, 404, map[string]string{"error": err}, "application/json")
-		return
+		msg := fmt.Sprintf("%s", err)
+		e, _ := json.Marshal(map[string]string{"error": msg})
+		return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 	}
-	// TODO get ID and return here (or whole object?)
-	utils.SendResponse(w, 201, map[string]string{"res": "Deleted successfully"}, "application/json")
-	return
+	msg := "Deleted Successfully"
+	e, _ := json.Marshal(map[string]string{"msg": msg})
+	return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
 }

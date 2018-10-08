@@ -37,4 +37,3 @@ If you are a beginner, check out the [labelled open issues](https://github.com/e
         openape.NewServer("PATH/TO/CONFIG")
     }
     ```
-

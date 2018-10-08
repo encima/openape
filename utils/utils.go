@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,8 +10,9 @@ import (
 
 // JSONResponse is alias of map for JSON response
 type JSONResponse struct {
-	data   map[string]interface{}
-	status int
+	Data        []byte
+	Status      int
+	ContentType string
 }
 
 // StringExists checks for a needle (string) in a haystack (array)
@@ -47,11 +47,9 @@ func LoadSwagger(p string) *openapi3.Swagger {
 }
 
 // SendResponse handles writing json responses back to the client using http response writer
-func SendResponse(w http.ResponseWriter, code int, message interface{}, content string) {
-	payload, _ := json.Marshal(message)
-
-	w.Header().Set("Content-Type", content)
-	w.WriteHeader(code)
-	w.Write(payload)
+func SendResponse(w http.ResponseWriter, res JSONResponse) {
+	w.Header().Set("Content-Type", res.ContentType)
+	w.WriteHeader(res.Status)
+	w.Write(res.Data)
 
 }

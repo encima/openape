@@ -47,28 +47,30 @@ func LoadConfig(path string) {
 
 // AddRoute takes a path and a method to create a route handler for a Mux router instance
 func (oape *OpenApe) AddRoute(path string, method string, model string) {
-	fmt.Printf("Adding route: %s \n", path)
+	fmt.Printf("Adding route: %s %s \n", method, path)
 	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		var res utils.JSONResponse
+		print(vars)
 		switch method {
 		case "GET":
-			oape.db.GetModels(w, model)
+			res = oape.db.GetModels(model)
 			break
 		case "POST":
 			m := oape.swagger.Components.Schemas[model]
-			oape.db.PostModel(w, model, m, r)
+			res = oape.db.PostModel(model, m, r)
 			break
 		case "PUT":
 			m := oape.swagger.Components.Schemas[model]
-			vars := mux.Vars(r)
-			oape.db.PutModel(w, vars["id"], model, m, r)
+			res = oape.db.PutModel(vars["id"], model, m, r)
 			break
 		case "DELETE":
-			vars := mux.Vars(r)
-			oape.db.DeleteModel(w, vars["id"], model, r)
+			res = oape.db.DeleteModel(vars["id"], model, r)
 			break
 		default:
 			break
 		}
+		utils.SendResponse(w, res)
 	}).Methods(method)
 }
 
@@ -94,17 +96,10 @@ func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
 	for k, v := range paths {
 		// TODO handle when user specifies function and do not pass to route
 		model := oape.GetModelFromPath(k)
-		if op := v.GetOperation("GET"); op != nil {
-			oape.AddRoute(k, "GET", model)
-		}
-		if op := v.GetOperation("PUT"); op != nil {
-			oape.AddRoute(k, "PUT", model)
-		}
-		if op := v.GetOperation("POST"); op != nil {
-			oape.AddRoute(k, "POST", model)
-		}
-		if op := v.GetOperation("DELETE"); op != nil {
-			oape.AddRoute(k, "DELETE", model)
+		for opName := range v.Operations() {
+			// op := v.GetOperation(opName)
+			// print(op.Parameters)
+			oape.AddRoute(k, opName, model)
 		}
 	}
 }
@@ -132,12 +127,14 @@ func NewServer(configPath string) OpenApe {
 	oapiPath := viper.GetString("openapi.path")
 	swagger := utils.LoadSwagger(oapiPath)
 
-	odb := db.Database{dbEngine}
+	odb := db.Database{Conn: dbEngine}
 	o := OpenApe{odb, r, swagger, viper.GetViper()}
+
 	o.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 	if len(o.swagger.Servers) > 0 && o.swagger.Servers[0].Variables["basePath"] != nil {
 		o.router = o.router.PathPrefix("/api/v1").Subrouter()
 	}
+	o.router.Use(o.APIAuthHandler)
 
 	// set up with routes and models to DB and Router
 	o.MapModels(swagger.Components.Schemas)
