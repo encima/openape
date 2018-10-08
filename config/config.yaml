@@ -1,0 +1,19 @@
+
+openapi:
+  path: /Users/encima/dev/go/c3s-oape/swagger/openapi.json
+  src: URL
+server:
+  staticDir: /Users/encima/dev/go/c3s-oape/static/
+system-db:
+  parent-stmt: 
+  parent-fields:
+    - id
+    - created_at
+    - modified_at
+  reserved-words:
+    - user
+database:
+  type: postgres
+  conn: postgresql://test:test@localhost/openape?sslmode=disable
+  required: true
+
