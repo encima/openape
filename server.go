@@ -118,7 +118,11 @@ func NewServer(configPath string) OpenApe {
 	o.router.Use(o.APIAuthHandler)
 	if o.ramlAPI != nil {
 		o.MapRAMLModels()
-		o.MapRAMLResources()
+		res := make(map[string]*raml.Resource)
+		for k, v := range o.ramlAPI.Resources {
+			res[k] = &v
+		}
+		o.MapRAMLResources(res)
 	} else if o.swagger != nil {
 		o.MapModels(swagger.Components.Schemas)
 		o.MapRoutes(swagger.Paths)
