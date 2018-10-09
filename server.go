@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/Jumpscale/go-raml/raml"
 
@@ -74,51 +73,6 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 		}
 		utils.SendResponse(w, res)
 	}).Methods(method)
-}
-
-// MapModels reads the models from the provided swagger file and creates the correspdonding tables in Postgres
-func (oape *OpenApe) MapModels(models map[string]*openapi3.SchemaRef) {
-	for k, v := range models {
-		oape.db.CreateSchema(k, v.Value.Properties)
-	}
-}
-
-// GetModelFromPath identifies which routes maps to which models identified in the Schemas of the spec
-func (oape *OpenApe) GetModelFromPath(path string) string {
-	for k := range oape.swagger.Components.Schemas {
-		if strings.Contains(strings.ToLower(path), strings.ToLower(k)) {
-			return k
-		}
-	}
-	return ""
-}
-
-// MapRoutes iterates the paths laid out in the swagger file and adds them to the router
-func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
-	for k, v := range paths {
-		// TODO handle when user specifies function and do not pass to route
-		model := oape.GetModelFromPath(k)
-		for opName := range v.Operations() {
-			oape.AddRoute(k, opName, model)
-		}
-	}
-}
-
-// MapRAMLModels iterates the types specified in a raml file
-func (oape *OpenApe) MapRAMLModels() {
-	for k, v := range oape.ramlAPI.Types {
-		oape.db.CreateRAMLSchema(k, v)
-	}
-}
-
-// MapRAMLResources iterates the types specified in a raml file
-func (oape *OpenApe) MapRAMLResources() {
-	for _, resVal := range oape.ramlAPI.Resources {
-		model := resVal.Type.Name
-		for _, methodVal := range resVal.Methods {
-			oape.AddRoute(resVal.URI, methodVal.Name, model)
-		}
-	}
 }
 
 // RunServer starts the openapi server on the specified port
