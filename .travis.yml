@@ -2,3 +2,5 @@ language: go
 go_import_path: github.com/encima/openape
 go:
 - 1.10.x
+notifications:
+  webhooks: https://chat.citizenscience.ch/hooks/xnYY4LLB2LWXqmxHd/ABijvSTDjRoNvPLin6JyLTRyBDGNQTDmihLutzRcT5bDHmWg
