@@ -2,6 +2,7 @@
 openapi:
   path: /Users/encima/dev/go/c3s-oape/swagger/openapi.json
   src: URL
+  version: v1
 server:
   staticDir: /Users/encima/dev/go/c3s-oape/static/
 system-db:

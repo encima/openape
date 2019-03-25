@@ -91,6 +91,7 @@ func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) 
 	if err != nil {
 		panic(fmt.Errorf("Problem creating table for %s: %s", k, err))
 	}
+	// TODO handle relations between models (potentially load from config file)
 	fmt.Printf("Table %s created \n", k)
 }
 

@@ -9,6 +9,21 @@ Much of web development consists of creating and maintaining an API that is marg
 
 ---
 
+## Writing your OpenAPI documents
+
+Your OpenAPI file will be validated using the `go-swagger` library, but openape supports a few extra parameters for handling things not yet supported by the spec, namely...relations.
+
+In your field that you want to relate, enter the:
+```x-swagger-relation:  {
+    "$ref": "#/definitions/Model#field"
+    "x-swagger-type": "m2m/m2o/o2o"
+}
+```
+
+
+
+---
+
 ## Contributing
 
 PRs are welcome, this is a super early version and is far from perfect.

@@ -61,7 +61,6 @@ func LoadSwagger(p string, src string) *openapi3.Swagger {
 		panic(fmt.Errorf("Error reading swagger file: %s", err))
 	}
 
-	fmt.Println(swagger.Servers[0])
 	return swagger
 }
 
