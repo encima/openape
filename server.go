@@ -59,6 +59,7 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 			break
 		case "POST":
 			m := oape.swagger.Components.Schemas[model]
+			// TODO default behaviour is to pass the model to the db and create. Needs to handle special methods (Login etc)
 			res = oape.db.PostModel(model, m, r)
 			break
 		case "PUT":
