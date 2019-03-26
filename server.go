@@ -47,8 +47,13 @@ func LoadConfig(path string) {
 	}
 }
 
-// AddRoute takes a path and a method to create a route handler for a Mux router instance
-func (oape *OpenApe) AddRoute(path string, method string, model string) {
+// AddCustomRoute is for those routes that need handling beyond the basic CRUD operations
+func (oape *OpenApe) AddCustomRoute(path string, method string, handler func(w http.ResponseWriter, r *http.Request)) {
+	oape.router.HandleFunc(path, handler).Methods(method)
+}
+
+// AddCRUDRoute takes a path and a method to create a route handler for a Mux router instance
+func (oape *OpenApe) AddCRUDRoute(path string, method string, model string) {
 	fmt.Printf("Adding route: %s %s \n", method, path)
 	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)

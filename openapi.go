@@ -31,7 +31,7 @@ func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
 		model := oape.GetModelFromPath(k)
 		for opName := range v.Operations() {
 			if v.GetOperation(opName).ExtensionProps.Extensions["x-openape-ignore"] == nil {
-				oape.AddRoute(k, opName, model)
+				oape.AddCRUDRoute(k, opName, model)
 			} else {
 				fmt.Printf("Ignoring route %s with method %s, please pass a handler for this \n", k, opName)
 			}

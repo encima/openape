@@ -19,7 +19,7 @@ func (oape *OpenApe) MapRAMLResources(res map[string]*raml.Resource) {
 		model := resVal.Type.Name
 		fmt.Println(k)
 		for _, methodVal := range resVal.Methods {
-			oape.AddRoute(resVal.URI, methodVal.Name, model)
+			oape.AddCRUDRoute(resVal.URI, methodVal.Name, model)
 		}
 		if len(resVal.Nested) > 0 {
 			oape.MapRAMLResources(resVal.Nested)
