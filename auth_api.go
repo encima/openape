@@ -13,8 +13,8 @@ func (oape *OpenApe) APIAuthHandler(next http.Handler) http.Handler {
 		token := r.Header.Get("X-API-KEY")
 		apiPath := strings.Replace(r.RequestURI, "/api/v1", "", 1)
 
-		if oape.swagger != nil {
-			swaggerPath := oape.swagger.Paths.Find(apiPath)
+		if oape.Swagger != nil {
+			swaggerPath := oape.Swagger.Paths.Find(apiPath)
 			reqPath := swaggerPath.GetOperation(r.Method)
 			if reqPath.Security == nil {
 				next.ServeHTTP(w, r)
@@ -25,7 +25,7 @@ func (oape *OpenApe) APIAuthHandler(next http.Handler) http.Handler {
 					default:
 						var apiKey string
 						query := fmt.Sprintf("SELECT api_key FROM users where api_key='%s';", token)
-						err := oape.db.Conn.Get(&apiKey, query)
+						err := oape.DB.Conn.Get(&apiKey, query)
 						if err != nil {
 							http.Error(w, "Forbidden", http.StatusForbidden)
 						} else {
@@ -37,9 +37,9 @@ func (oape *OpenApe) APIAuthHandler(next http.Handler) http.Handler {
 			} else {
 				http.Error(w, "Forbidden", http.StatusForbidden)
 			}
-			if oape.ramlAPI != nil {
+			if oape.RamlAPI != nil {
 				apiPath := strings.Replace(r.URL.String(), "/api/v1", "", 1)
-				ramlPath := oape.ramlAPI.Resources[apiPath]
+				ramlPath := oape.RamlAPI.Resources[apiPath]
 				method := ramlPath.MethodByName(r.Method)
 				fmt.Println(method)
 				next.ServeHTTP(w, r)

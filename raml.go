@@ -8,8 +8,8 @@ import (
 
 // MapRAMLModels iterates the types specified in a raml file
 func (oape *OpenApe) MapRAMLModels() {
-	for k, v := range oape.ramlAPI.Types {
-		oape.db.CreateRAMLSchema(k, v)
+	for k, v := range oape.RamlAPI.Types {
+		oape.DB.CreateRAMLSchema(k, v)
 	}
 }
 

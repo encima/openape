@@ -16,11 +16,11 @@ import (
 
 // OpenApe object to hold objects related to the server
 type OpenApe struct {
-	db      db.Database
-	router  *mux.Router
-	swagger *openapi3.Swagger
-	config  *viper.Viper
-	ramlAPI *raml.APIDefinition
+	DB      db.Database
+	Router  *mux.Router
+	Swagger *openapi3.Swagger
+	Config  *viper.Viper
+	RamlAPI *raml.APIDefinition
 }
 
 const (
@@ -49,30 +49,31 @@ func LoadConfig(path string) {
 
 // AddCustomRoute is for those routes that need handling beyond the basic CRUD operations
 func (oape *OpenApe) AddCustomRoute(path string, method string, handler func(w http.ResponseWriter, r *http.Request)) {
-	oape.router.HandleFunc(path, handler).Methods(method)
+	oape.Router.HandleFunc(path, handler).Methods(method)
+	fmt.Printf("Adding Custom route: %s %s \n", method, path)
 }
 
 // AddCRUDRoute takes a path and a method to create a route handler for a Mux router instance
 func (oape *OpenApe) AddCRUDRoute(path string, method string, model string) {
-	fmt.Printf("Adding route: %s %s \n", method, path)
-	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("Adding CRUD route: %s %s \n", method, path)
+	oape.Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		var res utils.JSONResponse
 		switch method {
 		case "GET":
-			res = oape.db.GetModels(model)
+			res = oape.DB.GetModels(model)
 			break
 		case "POST":
-			m := oape.swagger.Components.Schemas[model]
+			m := oape.Swagger.Components.Schemas[model]
 			// TODO default behaviour is to pass the model to the db and create. Needs to handle special methods (Login etc)
-			res = oape.db.PostModel(model, m, r)
+			res = oape.DB.PostModel(model, m, r)
 			break
 		case "PUT":
-			m := oape.swagger.Components.Schemas[model]
-			res = oape.db.PutModel(vars["id"], model, m, r)
+			m := oape.Swagger.Components.Schemas[model]
+			res = oape.DB.PutModel(vars["id"], model, m, r)
 			break
 		case "DELETE":
-			res = oape.db.DeleteModel(vars["id"], model, r)
+			res = oape.DB.DeleteModel(vars["id"], model, r)
 			break
 		default:
 			break
@@ -84,14 +85,14 @@ func (oape *OpenApe) AddCRUDRoute(path string, method string, model string) {
 // RunServer starts the openapi server on the specified port
 func (oape *OpenApe) RunServer() {
 	port := ":8080"
-	if oape.swagger != nil && len(oape.swagger.Servers) > 0 {
-		port = oape.swagger.Servers[0].Variables["port"].Default.(string)
-	} else if oape.ramlAPI != nil {
-		port = fmt.Sprintf(":%d", oape.ramlAPI.BaseURIParameters["port"].Default)
+	if oape.Swagger != nil && len(oape.Swagger.Servers) > 0 {
+		port = oape.Swagger.Servers[0].Variables["port"].Default.(string)
+	} else if oape.RamlAPI != nil {
+		port = fmt.Sprintf(":%d", oape.RamlAPI.BaseURIParameters["port"].Default)
 	}
 
 	fmt.Printf("Server running on port %s \n", port)
-	log.Fatal(http.ListenAndServe(port, oape.router))
+	log.Fatal(http.ListenAndServe(port, oape.Router))
 }
 
 // NewServer sets up the
@@ -124,19 +125,19 @@ func NewServer(configPath string) OpenApe {
 	}
 	odb := db.Database{Conn: dbEngine}
 	o := OpenApe{odb, r, swagger, viper.GetViper(), ramlAPI}
-	o.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
+	o.Router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 	// TODO handle base path from config files
-	o.router = o.router.PathPrefix("/api/v1").Subrouter()
-	o.router.Use(o.APIAuthHandler)
-	if o.ramlAPI != nil {
+	o.Router = o.Router.PathPrefix("/api/v1").Subrouter()
+	o.Router.Use(o.APIAuthHandler)
+	if o.RamlAPI != nil {
 		fmt.Println("Loading RAML specification...")
 		o.MapRAMLModels()
 		res := make(map[string]*raml.Resource)
-		for k, v := range o.ramlAPI.Resources {
+		for k, v := range o.RamlAPI.Resources {
 			res[k] = &v
 		}
 		o.MapRAMLResources(res)
-	} else if o.swagger != nil {
+	} else if o.Swagger != nil {
 		fmt.Println("Loading OpenAPI (3) specification...")
 		o.MapModels(swagger.Components.Schemas)
 		o.MapRoutes(swagger.Paths)

@@ -157,6 +157,7 @@ func (db Database) CreateRAMLSchema(k string, v raml.Type) {
 // GetModels queries a table of a model and returns all those that match
 func (db Database) GetModels(model string) utils.JSONResponse {
 	// TODO handle select columns
+	// TODO determine if model exists
 	qString := fmt.Sprintf("SELECT * FROM %s", model)
 	// if len(id) > 0 {
 	// 	qString += fmt.Sprintf(" WHERE id = %s;", id)
@@ -189,6 +190,7 @@ func (db Database) GetModels(model string) utils.JSONResponse {
 		v = append(v, m)
 	}
 	e, _ := json.Marshal(v)
+	fmt.Println(string(e))
 	// TODO set content type from swagger and handle in method
 	return utils.JSONResponse{Status: 200, Data: e, ContentType: "application/json"}
 }

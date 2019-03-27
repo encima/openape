@@ -10,13 +10,13 @@ import (
 // MapModels reads the models from the provided swagger file and creates the correspdonding tables in Postgres
 func (oape *OpenApe) MapModels(models map[string]*openapi3.SchemaRef) {
 	for k, v := range models {
-		oape.db.CreateSchema(k, v.Value.Properties)
+		oape.DB.CreateSchema(k, v.Value.Properties)
 	}
 }
 
 // GetModelFromPath identifies which routes maps to which models identified in the Schemas of the spec
 func (oape *OpenApe) GetModelFromPath(path string) string {
-	for k := range oape.swagger.Components.Schemas {
+	for k := range oape.Swagger.Components.Schemas {
 		if strings.Contains(strings.ToLower(path), strings.ToLower(k)) {
 			return k
 		}
