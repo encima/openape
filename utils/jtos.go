@@ -21,6 +21,7 @@ var mappings = map[string]string{
 	"ni":  "NOT IN",
 }
 
+// JTOS wrapping struct to handle CRUD ops
 type JTOS struct {
 	Select SelectQuery
 	Insert CRUDStmt
@@ -31,16 +32,19 @@ type JTOS struct {
 	Offset int
 }
 
+// CRUDStmt a struct for all CRUD ops
 type CRUDStmt struct {
 	table  string
 	values []Values
 }
 
+// Values general purpose struct for linking values with fields
 type Values struct {
 	field string
 	value string
 }
 
+// SelectQuery to build a SQL statement with ordering, grouping and support for joins
 type SelectQuery struct {
 	Query   []CRUDStmt
 	OrderBy []Order
@@ -48,26 +52,31 @@ type SelectQuery struct {
 	Join    JoinStmt
 }
 
+// Order results by ascending or descending
 type Order struct {
 	Field string
 	ASC   bool
 }
 
+// JoinStmt to set the type of join and the conditions
 type JoinStmt struct {
 	Type string
 	Cond JoinCondition
 }
 
+// JoinCondition to set the source and destination table
 type JoinCondition struct {
 	from Condition
 	to   Condition
 }
 
+// Condition to specify the table and field
 type Condition struct {
 	table string
 	field string
 }
 
+// WhereCond to set the field, operation and whether to AND/OR with other ops
 type WhereCond struct {
 	Field string
 	Op    string
@@ -75,6 +84,7 @@ type WhereCond struct {
 	Join  string
 }
 
+// ParseObject receives a JTOS struct and builds a SQL statement
 func ParseObject(j JTOS) string {
 	var stmt strings.Builder
 
