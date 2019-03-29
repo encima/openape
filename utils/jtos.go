@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -25,6 +26,7 @@ type JTOS struct {
 	Insert CRUDStmt
 	Delete CRUDStmt
 	Update CRUDStmt
+	Where  []WhereCond
 	Limit  int
 	Offset int
 }
@@ -43,6 +45,7 @@ type SelectQuery struct {
 	Query   []CRUDStmt
 	OrderBy []Order
 	GroupBy []string
+	Join    JoinStmt
 }
 
 type Order struct {
@@ -52,9 +55,10 @@ type Order struct {
 
 type JoinStmt struct {
 	Type string
+	Cond JoinCondition
 }
 
-type JoinConditions struct {
+type JoinCondition struct {
 	from Condition
 	to   Condition
 }
@@ -71,8 +75,38 @@ type WhereCond struct {
 	Join  string
 }
 
-func ParseObject() {
+func ParseObject(j JTOS) string {
+	var stmt strings.Builder
 
+	switch {
+	case !reflect.DeepEqual(j.Insert, CRUDStmt{}):
+		stmt.WriteString(buildInsert(j.Insert))
+		break
+	case reflect.DeepEqual(j.Select, SelectQuery{}):
+		stmt.WriteString(buildSelect(j.Select))
+		break
+	case !reflect.DeepEqual(j.Update, CRUDStmt{}):
+		stmt.WriteString(buildUpdate(j.Update))
+		break
+	case !reflect.DeepEqual(j.Delete, CRUDStmt{}):
+		stmt.WriteString(buildDelete(j.Update))
+		break
+	}
+
+	if len(j.Where) > 0 {
+		stmt.WriteString(buildWhere(j.Where))
+	}
+
+	if j.Limit > 0 {
+		stmt.WriteString(fmt.Sprintf(" LIMIT %d", j.Limit))
+	}
+
+	if j.Offset > 0 {
+		stmt.WriteString(fmt.Sprintf(" OFFSET %d", j.Offset))
+	}
+	stmt.WriteString(";")
+
+	return stmt.String()
 }
 
 func buildInsert(i CRUDStmt) string {
@@ -114,6 +148,9 @@ func buildSelect(s SelectQuery) string {
 		tblBuf = checkComma(len(s.Query), idx, tblBuf)
 	}
 	selectBuf.WriteString(fmt.Sprintf("SELECT %s FROM %s", fieldBuf.String(), tblBuf.String()))
+	if !reflect.DeepEqual(s.Join, JoinStmt{}) {
+		selectBuf.WriteString(buildJoin(s.Join))
+	}
 	if s.OrderBy != nil {
 		selectBuf.WriteString(buildOrder(s.OrderBy))
 	}
@@ -124,11 +161,16 @@ func buildSelect(s SelectQuery) string {
 	return selectBuf.String()
 }
 
-func buildWhere(w WhereCond) string {
+func buildUpdate(u CRUDStmt) string {
 	return ""
 }
 
-func buildJoin(j JoinConditions) string {
+func buildWhere(w []WhereCond) string {
+	// TODO handle conditions
+	return ""
+}
+
+func buildJoin(j JoinStmt) string {
 	return ""
 }
 
