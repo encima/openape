@@ -1,11 +1,11 @@
 package utils
 
 import (
-	"fmt"
 	"testing"
 )
 
 func TestJTOSSelectAll(t *testing.T) {
+	expected := "SELECT * FROM users;"
 	sel := CRUDStmt{table:"users", values: nil}
 	var sels []CRUDStmt
 	sels = append(sels, sel)
@@ -14,11 +14,15 @@ func TestJTOSSelectAll(t *testing.T) {
 	j := JTOS{q, CRUDStmt{}, CRUDStmt{}, CRUDStmt{}, nil, 0, 0}
 
 	s := ParseObject(j)
-	fmt.Println(s)
+	if s != expected {
+		t.Errorf("%s does not match %s", s, expected)
+	}
+
 
 }
 
 func TestJTOSSelectFields(t *testing.T) {
+	expected := "SELECT users.username FROM users;"
 	var vals []Values
 	v := Values{"username", ""}
 	vals = append(vals, v)
@@ -30,6 +34,12 @@ func TestJTOSSelectFields(t *testing.T) {
 	j := JTOS{q, CRUDStmt{}, CRUDStmt{}, CRUDStmt{}, nil, 0, 0}
 
 	s := ParseObject(j)
-	fmt.Println(s)
+	if s != expected {
+		t.Errorf("%s does not match %s", s, expected)
+	}
+
+}
+
+func TestJTOSParse(t *testing.T) {
 
 }
