@@ -82,17 +82,19 @@ type WhereCond struct {
 	Op    string
 	Val   string
 	Join  string
+	Type  string
 }
 
 // ParseObject receives a JTOS struct and builds a SQL statement
 func ParseObject(j JTOS) string {
 	var stmt strings.Builder
-
+	fmt.Println("Parsing details")
+	fmt.Println(reflect.DeepEqual(j.Insert, CRUDStmt{}))
 	switch {
 	case !reflect.DeepEqual(j.Insert, CRUDStmt{}):
 		stmt.WriteString(buildInsert(j.Insert))
 		break
-	case reflect.DeepEqual(j.Select, SelectQuery{}):
+	case !reflect.DeepEqual(j.Select, SelectQuery{}):
 		stmt.WriteString(buildSelect(j.Select))
 		break
 	case !reflect.DeepEqual(j.Update, CRUDStmt{}):
@@ -146,13 +148,16 @@ func checkComma(length int, idx int, buf strings.Builder) strings.Builder {
 
 func buildSelect(s SelectQuery) string {
 	var selectBuf, fieldBuf, tblBuf strings.Builder
-	selectBuf.WriteString("SELECT ")
+	//selectBuf.WriteString("SELECT ")
 
 	for idx := range s.Query {
 		field := s.Query[idx]
 		for fidx := range field.values {
-			fieldBuf.WriteString(fmt.Sprintf("%s.%s", field.table, field.values[fidx]))
+			fieldBuf.WriteString(fmt.Sprintf("%s.%s", field.table, field.values[fidx].field))
 			fieldBuf = checkComma(len(field.values), fidx, fieldBuf)
+		}
+		if len(field.values) == 0 {
+			fieldBuf.WriteString("*")
 		}
 		tblBuf.WriteString(field.table)
 		tblBuf = checkComma(len(s.Query), idx, tblBuf)
@@ -176,8 +181,22 @@ func buildUpdate(u CRUDStmt) string {
 }
 
 func buildWhere(w []WhereCond) string {
-	// TODO handle conditions
-	return ""
+	var whereBuf strings.Builder
+
+	for idx := range w {
+		cond := w[idx]
+		whereBuf.WriteString(fmt.Sprintf("%s %s ", cond.Field, mappings[cond.Op]))
+		if cond.Type == "number" || cond.Type == "raw" {
+			whereBuf.WriteString(cond.Val)
+		} else {
+			whereBuf.WriteString(fmt.Sprintf("'%s' ", cond.Val))
+		}
+		whereBuf.WriteString(cond.Join)
+
+	}
+
+	return " WHERE " + whereBuf.String()
+
 }
 
 func buildJoin(j JoinStmt) string {
