@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -35,14 +38,29 @@ func ToStringMap(source []interface{}) []string {
 }
 
 // LoadSwagger loads swagger from specified location
-func LoadSwagger(p string) *openapi3.Swagger {
+func LoadSwagger(p string, src string) *openapi3.Swagger {
 
-	swagger, err := openapi3.NewSwaggerLoader().LoadSwaggerFromFile(p)
+	var swagger *openapi3.Swagger
+	var err error
+	switch src {
+	case "FILE":
+		swagger, err = openapi3.NewSwaggerLoader().LoadSwaggerFromFile(p)
+		break
+	case "URL":
+		u, err := url.Parse(p)
+		if err != nil {
+			panic(fmt.Errorf("Error parsing URL: %s", err))
+		}
+		swagger, err = openapi3.NewSwaggerLoader().LoadSwaggerFromURI(u)
+		break
+	default:
+		break
+	}
+
 	if err != nil {
 		panic(fmt.Errorf("Error reading swagger file: %s", err))
 	}
 
-	fmt.Println(swagger.Servers[0])
 	return swagger
 }
 
@@ -52,4 +70,15 @@ func SendResponse(w http.ResponseWriter, res JSONResponse) {
 	w.WriteHeader(res.Status)
 	w.Write(res.Data)
 
+}
+
+// GetBytesFromInterface returns a byte array for the specified generic interface
+func GetBytesFromInterface(key interface{}) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(key)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

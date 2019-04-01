@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
+
+	"github.com/Jumpscale/go-raml/raml"
 
 	"github.com/encima/openape/db"
 	"github.com/encima/openape/utils"
@@ -15,10 +16,11 @@ import (
 
 // OpenApe object to hold objects related to the server
 type OpenApe struct {
-	db      db.Database
-	router  *mux.Router
-	swagger *openapi3.Swagger
-	config  *viper.Viper
+	DB      db.Database
+	Router  *mux.Router
+	Swagger *openapi3.Swagger
+	Config  *viper.Viper
+	RamlAPI *raml.APIDefinition
 }
 
 const (
@@ -45,27 +47,33 @@ func LoadConfig(path string) {
 	}
 }
 
-// AddRoute takes a path and a method to create a route handler for a Mux router instance
-func (oape *OpenApe) AddRoute(path string, method string, model string) {
-	fmt.Printf("Adding route: %s %s \n", method, path)
-	oape.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+// AddCustomRoute is for those routes that need handling beyond the basic CRUD operations
+func (oape *OpenApe) AddCustomRoute(path string, method string, handler func(w http.ResponseWriter, r *http.Request)) {
+	oape.Router.HandleFunc(path, handler).Methods(method)
+	fmt.Printf("Adding Custom route: %s %s \n", method, path)
+}
+
+// AddCRUDRoute takes a path and a method to create a route handler for a Mux router instance
+func (oape *OpenApe) AddCRUDRoute(path string, method string, model string) {
+	fmt.Printf("Adding CRUD route: %s %s \n", method, path)
+	oape.Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		var res utils.JSONResponse
-		print(vars)
 		switch method {
 		case "GET":
-			res = oape.db.GetModels(model)
+			res = oape.DB.GetModels(model)
 			break
 		case "POST":
-			m := oape.swagger.Components.Schemas[model]
-			res = oape.db.PostModel(model, m, r)
+			m := oape.Swagger.Components.Schemas[model]
+			// TODO default behaviour is to pass the model to the db and create. Needs to handle special methods (Login etc)
+			res = oape.DB.PostModel(model, m, r)
 			break
 		case "PUT":
-			m := oape.swagger.Components.Schemas[model]
-			res = oape.db.PutModel(vars["id"], model, m, r)
+			m := oape.Swagger.Components.Schemas[model]
+			res = oape.DB.PutModel(vars["id"], model, m, r)
 			break
 		case "DELETE":
-			res = oape.db.DeleteModel(vars["id"], model, r)
+			res = oape.DB.DeleteModel(vars["id"], model, r)
 			break
 		default:
 			break
@@ -74,43 +82,17 @@ func (oape *OpenApe) AddRoute(path string, method string, model string) {
 	}).Methods(method)
 }
 
-// MapModels reads the models from the provided swagger file and creates the correspdonding tables in Postgres
-func (oape *OpenApe) MapModels(models map[string]*openapi3.SchemaRef) {
-	for k, v := range models {
-		oape.db.CreateSchema(k, v.Value.Properties)
-	}
-}
-
-// GetModelFromPath identifies which routes maps to which models identified in the Schemas of the spec
-func (oape *OpenApe) GetModelFromPath(path string) string {
-	for k := range oape.swagger.Components.Schemas {
-		if strings.Contains(strings.ToLower(path), strings.ToLower(k)) {
-			return k
-		}
-	}
-	return ""
-}
-
-// MapRoutes iterates the paths laid out in the swagger file and adds them to the router
-func (oape *OpenApe) MapRoutes(paths map[string]*openapi3.PathItem) {
-	for k, v := range paths {
-		// TODO handle when user specifies function and do not pass to route
-		model := oape.GetModelFromPath(k)
-		for opName := range v.Operations() {
-			// op := v.GetOperation(opName)
-			// print(op.Parameters)
-			oape.AddRoute(k, opName, model)
-		}
-	}
-}
-
 // RunServer starts the openapi server on the specified port
 func (oape *OpenApe) RunServer() {
 	port := ":8080"
-	if len(oape.swagger.Servers) > 0 {
-		port = oape.swagger.Servers[0].Variables["port"].Default.(string)
+	if oape.Swagger != nil && len(oape.Swagger.Servers) > 0 {
+		port = oape.Swagger.Servers[0].Variables["port"].Default.(string)
+	} else if oape.RamlAPI != nil {
+		port = fmt.Sprintf(":%d", oape.RamlAPI.BaseURIParameters["port"].Default)
 	}
-	log.Fatal(http.ListenAndServe(port, oape.router))
+
+	fmt.Printf("Server running on port %s \n", port)
+	log.Fatal(http.ListenAndServe(port, oape.Router))
 }
 
 // NewServer sets up the
@@ -118,27 +100,50 @@ func NewServer(configPath string) OpenApe {
 	r := mux.NewRouter()
 	// Routes consist of a path and a handler function.
 	LoadConfig(configPath)
+
 	r.HandleFunc("/", RootHandler).Methods("GET")
 
 	staticDir := viper.GetString("server.static")
 
 	dbEngine := db.DatabaseConnect()
 
-	oapiPath := viper.GetString("openapi.path")
-	swagger := utils.LoadSwagger(oapiPath)
-
-	odb := db.Database{Conn: dbEngine}
-	o := OpenApe{odb, r, swagger, viper.GetViper()}
-
-	o.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
-	if len(o.swagger.Servers) > 0 && o.swagger.Servers[0].Variables["basePath"] != nil {
-		o.router = o.router.PathPrefix("/api/v1").Subrouter()
+	ramlAPI := new(raml.APIDefinition)
+	var swagger *openapi3.Swagger
+	ramlPath := viper.GetString("raml.path")
+	if len(ramlPath) > 0 {
+		err := raml.ParseFile(ramlPath, ramlAPI)
+		fmt.Println("Loading RAML spec")
+		if err != nil {
+			panic(fmt.Errorf("%s", err))
+		}
+	} else {
+		ramlAPI = nil
+		oapiPath := viper.GetString("openapi.path")
+		oapiSrc := viper.GetString("openapi.src")
+		swagger = utils.LoadSwagger(oapiPath, oapiSrc)
+		fmt.Println("Loading OpenAPI spec")
 	}
-	o.router.Use(o.APIAuthHandler)
-
-	// set up with routes and models to DB and Router
-	o.MapModels(swagger.Components.Schemas)
-	o.MapRoutes(swagger.Paths)
+	odb := db.Database{Conn: dbEngine}
+	o := OpenApe{odb, r, swagger, viper.GetViper(), ramlAPI}
+	o.Router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
+	// TODO handle base path from config files
+	o.Router = o.Router.PathPrefix("/api/v1").Subrouter()
+	o.Router.Use(o.APIAuthHandler)
+	if o.RamlAPI != nil {
+		fmt.Println("Loading RAML specification...")
+		o.MapRAMLModels()
+		res := make(map[string]*raml.Resource)
+		for k, v := range o.RamlAPI.Resources {
+			res[k] = &v
+		}
+		o.MapRAMLResources(res)
+	} else if o.Swagger != nil {
+		fmt.Println("Loading OpenAPI (3) specification...")
+		o.MapModels(swagger.Components.Schemas)
+		o.MapRoutes(swagger.Paths)
+	} else {
+		panic("No API has been provided")
+	}
 
 	return o
 }

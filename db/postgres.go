@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Jumpscale/go-raml/raml"
+
 	"github.com/buger/jsonparser"
 	"github.com/encima/openape/utils"
 	"github.com/getkin/kin-openapi/openapi3"
@@ -44,12 +46,7 @@ func DatabaseConnect() *sqlx.DB {
 // CreateSchema generates a creation string from a model and executes
 func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) {
 	// Create parent table
-	res, err := db.Conn.Exec(baseCreationString)
-	if err != nil {
-		fmt.Println(err)
-		panic(fmt.Errorf("Problem creating BASE table %s", err))
-	}
-	fmt.Println(res)
+	db.CreateBaseTable()
 	var createBytes strings.Builder
 	createBytes.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", k))
 	if utils.StringExists(k, pgReservedWords) {
@@ -90,7 +87,67 @@ func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) 
 	createBytes.Reset()
 	createStmt = createStmt[:len(createStmt)-1]
 	createStmt += ") INHERITS (base_type);"
-	_, err = db.Conn.Exec(createStmt)
+	_, err := db.Conn.Exec(createStmt)
+	if err != nil {
+		panic(fmt.Errorf("Problem creating table for %s: %s", k, err))
+	}
+	// TODO handle relations between models (potentially load from config file)
+	fmt.Printf("Table %s created \n", k)
+}
+
+// CreateBaseTable creates the root table that schemas inherit from
+func (db Database) CreateBaseTable() {
+	res, err := db.Conn.Exec(baseCreationString)
+	if err != nil {
+		fmt.Println(err)
+		panic(fmt.Errorf("Problem creating BASE table %s", err))
+	}
+	fmt.Println(res)
+}
+
+// CreateRAMLSchema creates tables based on specified types/schemas
+func (db Database) CreateRAMLSchema(k string, v raml.Type) {
+	var createBytes strings.Builder
+	createBytes.WriteString(fmt.Sprintf("CREATE TABLE IF NOT EXISTS %s (", k))
+	if utils.StringExists(k, pgReservedWords) {
+		panic(fmt.Errorf("Reserved word found, table cannot be created"))
+	}
+
+	for propK, propV := range v.Properties {
+		if utils.StringExists(propK, pgBaseTypes) {
+			continue
+		}
+		// NOTE must covert here because the json schema is an object of objects
+		pr := propV.(map[interface{}]interface{})
+		propType := pr["type"]
+		propFormat := pr["format"]
+		dbType := "varchar"
+		switch propType {
+		case "object":
+		case "array":
+			dbType = "jsonb"
+			break
+		case "boolean":
+			dbType = "Boolean"
+			break
+		default:
+			if propFormat == "date-time" {
+				dbType = "date"
+			}
+			break
+		}
+		createBytes.WriteString(fmt.Sprintf("%s %s", propK, dbType))
+		if k == "id" {
+			createBytes.WriteString(" PRIMARY KEY,")
+		} else {
+			createBytes.WriteString(",")
+		}
+	}
+	createStmt := createBytes.String()
+	createBytes.Reset()
+	createStmt = createStmt[:len(createStmt)-1]
+	createStmt += ") INHERITS (base_type);"
+	_, err := db.Conn.Exec(createStmt)
 	if err != nil {
 		panic(fmt.Errorf("Problem creating table for %s: %s", k, err))
 	}
@@ -100,8 +157,8 @@ func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) 
 // GetModels queries a table of a model and returns all those that match
 func (db Database) GetModels(model string) utils.JSONResponse {
 	// TODO handle select columns
+	// TODO determine if model exists
 	qString := fmt.Sprintf("SELECT * FROM %s", model)
-	print(qString)
 	// if len(id) > 0 {
 	// 	qString += fmt.Sprintf(" WHERE id = %s;", id)
 	// }
@@ -133,6 +190,7 @@ func (db Database) GetModels(model string) utils.JSONResponse {
 		v = append(v, m)
 	}
 	e, _ := json.Marshal(v)
+	fmt.Println(string(e))
 	// TODO set content type from swagger and handle in method
 	return utils.JSONResponse{Status: 200, Data: e, ContentType: "application/json"}
 }
