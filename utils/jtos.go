@@ -23,72 +23,77 @@ var mappings = map[string]string{
 
 // JTOS wrapping struct to handle CRUD ops
 type JTOS struct {
-	Select SelectQuery
-	Insert CRUDStmt
-	Delete CRUDStmt
-	Update CRUDStmt
-	Where  []WhereCond
-	Limit  int
-	Offset int
+	Select SelectQuery `json:"select,omitempty"`
+	Insert CRUDStmt `json:"insert,omitempty"`
+	Delete CRUDStmt `json:"delete,omitempty"`
+	Update CRUDStmt `json:"update,omitempty"`
+	Where  []WhereCond `json:"where,omitempty"`
+	Limit  int `json:"limit,omitempty"`
+	Offset int `json:"offset,omitempty"`
+}
+
+type Fields struct {
+	Table string `json:"table"`
+	Fields []string `json:"fields, omitempty"`
 }
 
 // CRUDStmt a struct for all CRUD ops
 type CRUDStmt struct {
-	table  string
-	values []Values
+	Table  string `json:"table"`
+	// TODO rename to fields?
+	Values []Values `json:"values,omitempty"`
 }
 
 // Values general purpose struct for linking values with fields
 type Values struct {
-	field string
-	value string
+	Field string `json:"field,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
 // SelectQuery to build a SQL statement with ordering, grouping and support for joins
 type SelectQuery struct {
-	Query   []CRUDStmt
-	OrderBy []Order
-	GroupBy []string
-	Join    JoinStmt
+	Query   []Fields `json:"query"`
+	OrderBy []Order `json:"orderBy,omitempty"`
+	GroupBy []string `json:"groupBy,omitempty"`
+	Join    JoinStmt `json:"join,omitempty"`
 }
 
 // Order results by ascending or descending
 type Order struct {
-	Field string
-	ASC   bool
+	Field string `json:"field"`
+	ASC   bool `json:"asc"`
 }
 
 // JoinStmt to set the type of join and the conditions
 type JoinStmt struct {
-	Type string
-	Cond JoinCondition
+	Type string `json:"type"`
+	Cond JoinCondition `json:"cond"`
 }
 
 // JoinCondition to set the source and destination table
 type JoinCondition struct {
-	from Condition
-	to   Condition
+	From Condition `json:"from"`
+	To   Condition `json:"to"`
 }
 
 // Condition to specify the table and field
 type Condition struct {
-	table string
-	field string
+	Table string `json:"table"`
+	Field string `json:"field"`
 }
 
 // WhereCond to set the field, operation and whether to AND/OR with other ops
 type WhereCond struct {
-	Field string
-	Op    string
-	Val   string
-	Join  string
-	Type  string
+	Field string `json:"field"`
+	Op    string `json:"op"`
+	Val   string `json:"val"`
+	Join  string `json:"join, omitempty"`
+	Type  string `json:"type,omitempty"`
 }
 
 // ParseObject receives a JTOS struct and builds a SQL statement
 func ParseObject(j JTOS) string {
 	var stmt strings.Builder
-	fmt.Println("Parsing details")
 	fmt.Println(reflect.DeepEqual(j.Insert, CRUDStmt{}))
 	switch {
 	case !reflect.DeepEqual(j.Insert, CRUDStmt{}):
@@ -124,26 +129,26 @@ func ParseObject(j JTOS) string {
 func buildInsert(i CRUDStmt) string {
 	var valBuf, fieldBuf strings.Builder
 
-	for idx := range i.values {
-		val := i.values[idx]
-		fieldBuf.WriteString(val.field)
+	for idx := range i.Values {
+		val := i.Values[idx]
+		fieldBuf.WriteString(val.Field)
 		valBuf.WriteString("'")
 		// TODO handle non string values
-		valBuf.WriteString(val.value)
+		valBuf.WriteString(val.Value)
 		valBuf.WriteString("'")
-		if idx != len(i.values)-1 {
+		if idx != len(i.Values)-1 {
 			fieldBuf.WriteString(", ")
 			valBuf.WriteString(", ")
 		}
 	}
-	return fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s);", i.table, fieldBuf.String(), valBuf.String())
+	return fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s);", i.Table, fieldBuf.String(), valBuf.String())
 }
 
-func checkComma(length int, idx int, buf strings.Builder) strings.Builder {
+func checkComma(length int, idx int, buf *strings.Builder) strings.Builder {
 	if idx != length-1 {
 		buf.WriteString(", ")
 	}
-	return buf
+	return *buf
 }
 
 func buildSelect(s SelectQuery) string {
@@ -152,15 +157,15 @@ func buildSelect(s SelectQuery) string {
 
 	for idx := range s.Query {
 		field := s.Query[idx]
-		for fidx := range field.values {
-			fieldBuf.WriteString(fmt.Sprintf("%s.%s", field.table, field.values[fidx].field))
-			fieldBuf = checkComma(len(field.values), fidx, fieldBuf)
+		for fidx := range field.Fields {
+			fieldBuf.WriteString(fmt.Sprintf("%s.%s", field.Table, field.Fields[fidx]))
+			fieldBuf = checkComma(len(field.Fields), fidx, &fieldBuf)
 		}
-		if len(field.values) == 0 {
+		if len(field.Fields) == 0 {
 			fieldBuf.WriteString("*")
 		}
-		tblBuf.WriteString(field.table)
-		tblBuf = checkComma(len(s.Query), idx, tblBuf)
+		tblBuf.WriteString(field.Table)
+		tblBuf = checkComma(len(s.Query), idx, &tblBuf)
 	}
 	selectBuf.WriteString(fmt.Sprintf("SELECT %s FROM %s", fieldBuf.String(), tblBuf.String()))
 	if !reflect.DeepEqual(s.Join, JoinStmt{}) {
@@ -214,12 +219,12 @@ func buildOrder(o []Order) string {
 		default:
 			ordBuf.WriteString(" DESC")
 		}
-		ordBuf = checkComma(len(o), idx, ordBuf)
+		ordBuf = checkComma(len(o), idx, &ordBuf)
 	}
 	return ordBuf.String()
 }
 
 func buildDelete(d CRUDStmt) string {
 	// TODO handle conditions
-	return fmt.Sprintf("DELETE FROM %s", d.table)
+	return fmt.Sprintf("DELETE FROM %s", d.Table)
 }

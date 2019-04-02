@@ -158,6 +158,10 @@ func (db Database) CreateRAMLSchema(k string, v raml.Type) {
 func (db Database) GetModels(model string) utils.JSONResponse {
 	// TODO handle select columns
 	// TODO determine if model exists
+	getJson := `{"select": { "table": "users" }`
+	var jQuery utils.JTOS
+	err := json.Unmarshal([]byte(getJson), &jQuery)
+	fmt.Printf(jQuery.Select.Query[0].Table)
 	qString := fmt.Sprintf("SELECT * FROM %s", model)
 	// if len(id) > 0 {
 	// 	qString += fmt.Sprintf(" WHERE id = %s;", id)
