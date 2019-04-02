@@ -85,6 +85,7 @@ type Condition struct {
 // WhereCond to set the field, operation and whether to AND/OR with other ops
 type WhereCond struct {
 	Field string `json:"field"`
+	Table string `json:"table"`
 	Op    string `json:"op"`
 	Val   string `json:"val"`
 	Join  string `json:"join, omitempty"`
@@ -111,7 +112,9 @@ func ParseObject(j JTOS) string {
 	}
 
 	if len(j.Where) > 0 {
-		stmt.WriteString(buildWhere(j.Where))
+		w := buildWhere(j.Where)
+		w = strings.TrimSpace(w)
+		stmt.WriteString(" " + w)
 	}
 
 	if j.Limit > 0 {
@@ -122,7 +125,7 @@ func ParseObject(j JTOS) string {
 		stmt.WriteString(fmt.Sprintf(" OFFSET %d", j.Offset))
 	}
 	stmt.WriteString(";")
-
+	fmt.Printf(stmt.String())
 	return stmt.String()
 }
 
@@ -190,16 +193,19 @@ func buildWhere(w []WhereCond) string {
 
 	for idx := range w {
 		cond := w[idx]
-		whereBuf.WriteString(fmt.Sprintf("%s %s ", cond.Field, mappings[cond.Op]))
+		if cond.Table != "" {
+			whereBuf.WriteString(fmt.Sprintf("%s.%s %s ", cond.Table, cond.Field, mappings[cond.Op]))
+		} else {
+			whereBuf.WriteString(fmt.Sprintf("%s %s ", cond.Field, mappings[cond.Op]))
+		}
 		if cond.Type == "number" || cond.Type == "raw" {
 			whereBuf.WriteString(cond.Val)
 		} else {
-			whereBuf.WriteString(fmt.Sprintf("'%s' ", cond.Val))
+			whereBuf.WriteString(fmt.Sprintf("'%s'", cond.Val))
 		}
-		whereBuf.WriteString(cond.Join)
+		whereBuf.WriteString(fmt.Sprintf(" %s ", mappings[cond.Join]))
 
 	}
-
 	return " WHERE " + whereBuf.String()
 
 }

@@ -61,7 +61,7 @@ func (oape *OpenApe) AddCRUDRoute(path string, method string, model string) {
 		var res utils.JSONResponse
 		switch method {
 		case "GET":
-			res = oape.DB.GetModels(model)
+			res = oape.DB.GetModels(model, "")
 			break
 		case "POST":
 			m := oape.Swagger.Components.Schemas[model]
