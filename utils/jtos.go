@@ -34,7 +34,7 @@ type JTOS struct {
 
 type Fields struct {
 	Table string `json:"table"`
-	Fields []string `json:"fields, omitempty"`
+	Fields []string `json:"fields,omitempty"`
 }
 
 // CRUDStmt a struct for all CRUD ops
@@ -88,7 +88,7 @@ type WhereCond struct {
 	Table string `json:"table"`
 	Op    string `json:"op"`
 	Val   string `json:"val"`
-	Join  string `json:"join, omitempty"`
+	Join  string `json:"join,omitempty"`
 	Type  string `json:"type,omitempty"`
 }
 

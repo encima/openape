@@ -65,7 +65,6 @@ func (oape *OpenApe) AddCRUDRoute(path string, method string, model string) {
 			break
 		case "POST":
 			m := oape.Swagger.Components.Schemas[model]
-			// TODO default behaviour is to pass the model to the db and create. Needs to handle special methods (Login etc)
 			res = oape.DB.PostModel(model, m, r)
 			break
 		case "PUT":
