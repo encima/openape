@@ -55,6 +55,7 @@ func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) 
 
 	for k, v := range props {
 		vType := v.Value.Type
+		ext := v.Value.Extensions["x-openape-unique"]
 		// remove fields that already exist in the `base` parent table
 		if utils.StringExists(k, pgBaseTypes) {
 			continue
@@ -77,6 +78,9 @@ func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) 
 			break
 		}
 		createBytes.WriteString(fmt.Sprintf("%s %s", k, dbType))
+		if ext != nil {
+			createBytes.WriteString(" UNIQUE")
+		}
 		if k == "id" {
 			createBytes.WriteString(" PRIMARY KEY,")
 		} else {
@@ -97,12 +101,11 @@ func (db Database) CreateSchema(k string, props map[string]*openapi3.SchemaRef) 
 
 // CreateBaseTable creates the root table that schemas inherit from
 func (db Database) CreateBaseTable() {
-	res, err := db.Conn.Exec(baseCreationString)
+	_, err := db.Conn.Exec(baseCreationString)
 	if err != nil {
 		fmt.Println(err)
 		panic(fmt.Errorf("Problem creating BASE table %s", err))
 	}
-	fmt.Println(res)
 }
 
 // CreateRAMLSchema creates tables based on specified types/schemas
@@ -190,7 +193,6 @@ func (db Database) GetModels(model string, query string) utils.JSONResponse {
 		v = append(v, m)
 	}
 	e, _ := json.Marshal(v)
-	fmt.Println(string(e))
 	// TODO set content type from swagger and handle in method
 	return utils.JSONResponse{Status: 200, Data: e, ContentType: "application/json"}
 }
@@ -208,6 +210,7 @@ func (db Database) PostModel(modelName string, model *openapi3.SchemaRef, r *htt
 
 	if model != nil {
 		reqKeys := model.Value.Required // all required properties of the matching model
+
 		keyCount := 0
 		for i := range reqKeys {
 			_, dt, _, err := jsonparser.Get(body, reqKeys[i])
@@ -215,6 +218,13 @@ func (db Database) PostModel(modelName string, model *openapi3.SchemaRef, r *htt
 				msg := fmt.Sprintf("Required key '%s' is not present", reqKeys[i])
 				e, _ := json.Marshal(map[string]string{"error": msg})
 				return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
+			}
+		}
+		extProps := model.Value.Properties
+		for k, prop := range extProps {
+			if prop.Value.Extensions["x-openape-autogen"] != nil {
+				u2 := uuid.Must(uuid.NewV4()).String()
+				body, _ = jsonparser.Set(body, []byte(fmt.Sprintf("\"%s\"", u2)), k)
 			}
 		}
 
@@ -250,13 +260,18 @@ func (db Database) PostModel(modelName string, model *openapi3.SchemaRef, r *htt
 					valsBytes.WriteString(fmt.Sprintf("'%s', ", vals[k]))
 				} else {
 					colsBytes.WriteString(fmt.Sprintf("%s)", cols[k]))
-					valsBytes.WriteString(fmt.Sprintf("'%s');", vals[k]))
+					valsBytes.WriteString(fmt.Sprintf("'%s')", vals[k]))
 				}
 			}
 
 			insertBytes.WriteString(fmt.Sprintf("%s VALUES (%s", colsBytes.String(), valsBytes.String()))
+			insertBytes.WriteString(" RETURNING id;")
 			fmt.Println(insertBytes.String())
-			_, err := db.Conn.Exec(insertBytes.String())
+			// tx := db.Conn.MustBegin()
+			// res := tx.MustExec(insertBytes.String())
+			// err = tx.Commit()
+			var id string
+			err := db.Conn.QueryRow(insertBytes.String()).Scan(&id)
 			if err != nil {
 				msg := fmt.Sprintf("%s", err)
 				e, _ := json.Marshal(map[string]string{"error": msg})
@@ -264,8 +279,8 @@ func (db Database) PostModel(modelName string, model *openapi3.SchemaRef, r *htt
 			}
 			// TODO get ID and return here (or whole object?)
 			msg := "Created Successfully"
-			e, _ := json.Marshal(map[string]string{"msg": msg})
-			return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
+			e, _ := json.Marshal(map[string]string{"msg": msg, "id": id})
+			return utils.JSONResponse{Data: e, Status: 201, ContentType: "application/json"}
 		}
 		msg := "Number of keys is not equal to values provided"
 		e, _ := json.Marshal(map[string]string{"error": msg})
@@ -349,6 +364,7 @@ func (db Database) PutModel(id string, modelName string, model *openapi3.SchemaR
 
 // DeleteModel removes an existing entry
 func (db Database) DeleteModel(id string, modelName string, r *http.Request) utils.JSONResponse {
+	print("DELETING MODEL")
 	var deleteBytes strings.Builder
 	deleteBytes.WriteString(fmt.Sprintf("DELETE FROM %s WHERE id = '%s';", modelName, id))
 	fmt.Println(deleteBytes.String())
@@ -360,5 +376,5 @@ func (db Database) DeleteModel(id string, modelName string, r *http.Request) uti
 	}
 	msg := "Deleted Successfully"
 	e, _ := json.Marshal(map[string]string{"msg": msg})
-	return utils.JSONResponse{Data: e, Status: 400, ContentType: "application/json"}
+	return utils.JSONResponse{Data: e, Status: 200, ContentType: "application/json"}
 }

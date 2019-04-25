@@ -12,9 +12,15 @@ func (oape *OpenApe) APIAuthHandler(next http.Handler) http.Handler {
 		// TODO retrieve header key from swagger config
 		token := r.Header.Get("X-API-KEY")
 		apiPath := strings.Replace(r.RequestURI, "/api/v1", "", 1)
-
 		if oape.Swagger != nil {
 			swaggerPath := oape.Swagger.Paths.Find(apiPath)
+			if swaggerPath == nil {
+				apiPath = apiPath[:strings.LastIndex(apiPath, "/")] + "/{id}"
+				swaggerPath = oape.Swagger.Paths.Find(apiPath)
+				if swaggerPath == nil {
+					http.Error(w, "Not Found", http.StatusNotFound)
+				}
+			}
 			reqPath := swaggerPath.GetOperation(r.Method)
 			if reqPath.Security == nil {
 				next.ServeHTTP(w, r)
