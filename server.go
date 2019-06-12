@@ -12,7 +12,14 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gorilla/mux"
 	"github.com/spf13/viper"
+
+	"github.com/schollz/closestmatch"
 )
+
+type Paths struct {
+	urls    []string
+	matcher *closestmatch.ClosestMatch
+}
 
 // OpenApe object to hold objects related to the server
 type OpenApe struct {
@@ -21,6 +28,7 @@ type OpenApe struct {
 	Swagger *openapi3.Swagger
 	Config  *viper.Viper
 	RamlAPI *raml.APIDefinition
+	Paths   Paths
 }
 
 const (
@@ -56,6 +64,7 @@ func (oape *OpenApe) AddCustomRoute(path string, method string, handler func(w h
 // AddCRUDRoute takes a path and a method to create a route handler for a Mux router instance
 func (oape *OpenApe) AddCRUDRoute(path string, method string, model string) {
 	fmt.Printf("Adding CRUD route: %s %s \n", method, path)
+	oape.Paths.urls = append(oape.Paths.urls, path)
 	oape.Router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		var res utils.JSONResponse
@@ -123,7 +132,7 @@ func NewServer(configPath string) OpenApe {
 		fmt.Println("Loading OpenAPI spec")
 	}
 	odb := db.Database{Conn: dbEngine}
-	o := OpenApe{odb, r, swagger, viper.GetViper(), ramlAPI}
+	o := OpenApe{odb, r, swagger, viper.GetViper(), ramlAPI, Paths{}}
 	o.Router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))
 	// TODO handle base path from config files
 	o.Router = o.Router.PathPrefix("/api/v1").Subrouter()
@@ -144,5 +153,9 @@ func NewServer(configPath string) OpenApe {
 		panic("No API has been provided")
 	}
 
+	bagSizes := []int{2}
+
+	// Create a closestmatch object
+	o.Paths.matcher = closestmatch.New(o.Paths.urls, bagSizes)
 	return o
 }

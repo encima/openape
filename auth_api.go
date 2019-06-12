@@ -14,14 +14,17 @@ func (oape *OpenApe) APIAuthHandler(next http.Handler) http.Handler {
 		apiPath := strings.Replace(r.RequestURI, "/api/v1", "", 1)
 		if oape.Swagger != nil {
 			swaggerPath := oape.Swagger.Paths.Find(apiPath)
+			// TODO this only works for those situations when the variable is at the end of the path. Need to implement fuzzy search path matching
 			if swaggerPath == nil {
-				apiPath = apiPath[:strings.LastIndex(apiPath, "/")] + "/{id}"
-				swaggerPath = oape.Swagger.Paths.Find(apiPath)
+				match := oape.Paths.matcher.Closest(apiPath)
+				// TODO check match
+				swaggerPath = oape.Swagger.Paths[match]
 				if swaggerPath == nil {
 					http.Error(w, "Not Found", http.StatusNotFound)
 				}
 			}
 			reqPath := swaggerPath.GetOperation(r.Method)
+
 			if reqPath.Security == nil {
 				next.ServeHTTP(w, r)
 			} else if token != "" {
